@@ -3,20 +3,21 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Monthly Expenses Planner</title>
 <style>
-:root{--bg:#f4f6f9;--card:#fff;--tx:#141a22;--mut:#667085;--bd:#e3e7ee;--ac:#2563eb;--ok:#15803d;--bad:#c62828;--badbg:#fdecec;--okbg:#e8f6ec;--tr:#e9edf3;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
-@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e1218;--card:#171d27;--tx:#e8ecf2;--mut:#98a2b3;--bd:#283040;--ac:#6ea0ff;--ok:#4ade80;--bad:#ff7b7b;--badbg:#3a1a1c;--okbg:#14301d;--tr:#262e3b}}
-:root[data-theme="dark"]{--bg:#0e1218;--card:#171d27;--tx:#e8ecf2;--mut:#98a2b3;--bd:#283040;--ac:#6ea0ff;--ok:#4ade80;--bad:#ff7b7b;--badbg:#3a1a1c;--okbg:#14301d;--tr:#262e3b}
+:root{--bg:#f4f6f9;--card:#fff;--tx:#141a22;--mut:#667085;--bd:#e3e7ee;--ac:#2563eb;--ok:#15803d;--bad:#c62828;--badbg:#fdecec;--okbg:#e8f6ec;--tr:#e9edf3;--g1:#dbeafe;--g2:#ede9fe;--g3:#fce7f3;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e1218;--card:#171d27;--tx:#e8ecf2;--mut:#98a2b3;--bd:#283040;--ac:#6ea0ff;--ok:#4ade80;--bad:#ff7b7b;--badbg:#3a1a1c;--okbg:#14301d;--tr:#262e3b;--g1:#0b1630;--g2:#1a1235;--g3:#2a1230}}
+:root[data-theme="dark"]{--g1:#0b1630;--g2:#1a1235;--g3:#2a1230;--bg:#0e1218;--card:#171d27;--tx:#e8ecf2;--mut:#98a2b3;--bd:#283040;--ac:#6ea0ff;--ok:#4ade80;--bad:#ff7b7b;--badbg:#3a1a1c;--okbg:#14301d;--tr:#262e3b}
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:linear-gradient(160deg,var(--g1),var(--g2) 50%,var(--g3)) fixed;color:var(--tx);font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 main{max-width:760px;margin:0 auto;padding:14px 14px 60px}
 h1{font-size:20px;margin:0}h2{font-size:16px;margin:0}small,.mut{color:var(--mut);font-size:12.5px}
-section{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px;margin:14px 0}
+section{border-top:4px solid var(--sc,var(--ac));box-shadow:0 4px 14px #1e293b14;background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px;margin:14px 0}
 .hd{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap}
-.top{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
+.top{background:linear-gradient(120deg,#2563eb,#7c3aed,#db2777);color:#fff;padding:14px 16px;border-radius:16px;box-shadow:0 6px 18px #7c3aed40;display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
 button{font:inherit;cursor:pointer;border:1px solid var(--bd);background:var(--card);color:var(--tx);border-radius:9px;padding:7px 11px}
 button.p{background:var(--ac);border-color:var(--ac);color:#fff}button.ic{padding:4px 9px;color:var(--mut)}button.sm{padding:3px 9px;font-size:13px}
 input,select{font:inherit;color:var(--tx);background:var(--bg);border:1px solid var(--bd);border-radius:9px;padding:8px 10px;width:100%}
 .kp{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}@media(min-width:560px){.kp{grid-template-columns:repeat(4,1fr)}}
+.top small{color:#ffffffd0}.top button{background:#ffffff26;border-color:#ffffff55;color:#fff}.kp .kpi:nth-child(1){background:rgba(34,197,94,.17)}.kp .kpi:nth-child(2){background:rgba(99,102,241,.17)}.kp .kpi:nth-child(3){background:rgba(245,158,11,.2)}.kp .kpi:nth-child(4){background:rgba(20,184,166,.18)}.kp .kpi:nth-child(6){background:rgba(59,130,246,.16)}.kp .kpi:nth-child(7){background:rgba(168,85,247,.16)}.kp .kpi:nth-child(8){background:rgba(236,72,153,.15)}.kp .kpi:nth-child(9){background:rgba(249,115,22,.16)}
 .kpi{background:var(--bg);border-radius:11px;padding:10px}.kpi b{display:block;font-size:18px;margin-top:2px}
 .big{grid-column:span 2;background:var(--okbg)}.big.neg{background:var(--badbg)}.big b{font-size:26px}
 .bad{color:var(--bad)}.ok{color:var(--ok)}
@@ -76,7 +77,9 @@ function sugg(){return S.vars.map(c=>{const s=sp(c),base=Math.max(c.cap,s);
 const kpi=(l,v,c='')=>`<div class="kpi"><small>${l}</small><b class="${c}">${v}</b></div>`;
 const row=(k,x,sub,amt)=>`<div class="row"><div class="g"><b>${esc(x.name)}</b><small>${sub}</small></div><div class="a">${amt}</div><button class="ic" onclick="openForm('${k}','${x.id}')" aria-label="Edit">✎</button><button class="ic" onclick="del('${k}','${x.id}')" aria-label="Delete">✕</button></div>`;
 const OPEN=new Set();
-function render(){
+const num=v=>parseFloat(String(v).replace(/[^0-9.\-]/g,''))||0;
+function render(){const y=scrollY;try{_render()}catch(e){console.error(e);$('#app').insertAdjacentHTML('afterbegin',`<div class="al">Something went wrong: ${esc(e.message)}. <button onclick="resetAll()">Reset data</button></div>`)}scrollTo(0,y)}
+function _render(){
  calc();save();const[y,m]=ym();
  const al=[];
  if(T.left<0)al.push(`Overspending: your plan is ${f(-T.left)} more than your income.`);
@@ -90,36 +93,36 @@ function render(){
  $('#app').innerHTML=`
 <div class="top"><div><h1>Monthly Planner</h1><small>${new Date(y,m-1).toLocaleDateString('en-GB',{month:'long',year:'numeric'})} · ${T.dim} days</small></div>
 <div style="display:flex;gap:6px;flex-wrap:wrap"><button onclick="newMonth()">New month</button><button onclick="exportCsv()">Export CSV</button><button onclick="resetAll()">Reset</button></div></div>
-<section><div class="hd"><h2>Dashboard</h2><label style="margin:0;display:flex;gap:6px;align-items:center">Opening balance <input type="number" step="0.01" style="width:100px" value="${S.opening}" onchange="S.opening=parseFloat(this.value)||0;render()"></label></div>
+<section style="--sc:#2563eb"><div class="hd"><h2>Dashboard</h2><label style="margin:0;display:flex;gap:6px;align-items:center">Opening balance <input type="text" inputmode="decimal" style="width:100px" value="${S.opening}" onchange="S.opening=num(this.value);render()"></label></div>
 ${al.length?al.map(a=>`<div class="al">⚠ ${a}</div>`).join(''):'<div class="al g">✓ On track: no overspending and no shortfalls projected.</div>'}
 <div class="kp" style="margin-top:8px">${kpi('Total income',f(T.inc))}${kpi('Fixed expenses',f(T.fix))}${kpi('Variable (planned)',f(T.vt))}${kpi('Savings · '+(T.inc?(T.sav/T.inc*100).toFixed(1):0)+'% of income',f(T.sav))}
 <div class="kpi big ${T.left<0?'neg':''}"><small>Money left over (income − fixed − variable − savings)</small><b class="${T.left<0?'bad':'ok'}">${f(T.left)}</b></div>
 ${kpi('Weekly budget (left ÷ 4)',f(T.left/4),T.left<0?'bad':'')}${kpi('Daily budget',f(T.left/T.dim),T.left<0?'bad':'')}
 ${kpi('Projected end balance',f(T.end),T.end<0?'bad':'ok')}${kpi('Variable spent so far',f(T.spent))}</div></section>
-<section><div class="hd"><h2>Where the month goes</h2></div>${rows.map(([n,v,c])=>`<div class="br"><span>${esc(n)}</span><div class="bt"><i style="width:${v/mx*100}%;background:${c}"></i></div><em>${f(v)}</em></div>`).join('')||'<small>Nothing yet.</small>'}</section>
-<section><div class="hd"><h2>Income</h2><button class="p" onclick="openForm('income')">+ Add</button></div>
+<section style="--sc:#db2777"><div class="hd"><h2>Where the month goes</h2></div>${rows.map(([n,v,c])=>`<div class="br"><span>${esc(n)}</span><div class="bt"><i style="width:${v/mx*100}%;background:${c}"></i></div><em>${f(v)}</em></div>`).join('')||'<small>Nothing yet.</small>'}</section>
+<section style="--sc:#16a34a"><div class="hd"><h2>Income</h2><button class="p" onclick="openForm('income')">+ Add</button></div>
 ${S.income.map(i=>row('income',i,`${dl(i.day)} · ${i.freq}${i.freq==='weekly'?` · ${occ(i).length} paydays this month`:''}`,f(i.amount*occ(i).length)+(i.freq==='weekly'?`<small>${f(i.amount)} each</small>`:''))).join('')}
 <div class="row"><div class="g"><b>Total monthly income</b></div><div class="a">${f(T.inc)}</div></div></section>
-<section><div class="hd"><h2>Fixed expenses</h2><button class="p" onclick="openForm('fixed')">+ Add</button></div>
+<section style="--sc:#6366f1"><div class="hd"><h2>Fixed expenses</h2><button class="p" onclick="openForm('fixed')">+ Add</button></div>
 ${S.fixed.map(x=>row('fixed',x,'Due '+dl(x.day),f(x.amount))).join('')}
 <div class="row"><div class="g"><b>Total fixed</b></div><div class="a">${f(T.fix)}</div></div></section>
-<section><div class="hd"><div><h2>Variable expenses</h2><small>Budget ${f(T.caps)} · Spent ${f(T.spent)}</small></div><button class="p" onclick="openForm('vars')">+ Category</button></div>
+<section style="--sc:#f59e0b"><div class="hd"><div><h2>Variable expenses</h2><small>Budget ${f(T.caps)} · Spent ${f(T.spent)}</small></div><button class="p" onclick="openForm('vars')">+ Category</button></div>
 ${S.vars.map(c=>{const s=sp(c),l=c.cap-s,pc=c.cap?Math.min(100,s/c.cap*100):s?100:0;return`<div class="cat"><div class="cr"><b>${esc(c.name)}</b><span><b class="${l<0?'bad':''}">${f(s)}</b> / ${f(c.cap)}</span></div>
 <div class="pr"><i style="width:${pc}%;background:${l<0?'var(--bad)':pc>80?'#f59e0b':'var(--ok)'}"></i></div>
 <small class="${l<0?'bad':''}">${l<0?'Over by '+f(-l):f(l)+' left'}</small>
-<div class="wi">What if cap £<input type="number" inputmode="decimal" min="0" step="1" placeholder="e.g. ${Math.max(0,Math.round(c.cap*.7))}" oninput="wi(this,'${c.id}')"><span id="wi-${c.id}"></span></div>
+<div class="wi">What if cap £<input type="text" inputmode="decimal" placeholder="e.g. ${Math.max(0,Math.round(c.cap*.7))}" oninput="wi(this,'${c.id}')"><span id="wi-${c.id}"></span></div>
 <div class="bs"><button class="sm p" onclick="openForm('log',null,'${c.id}')">+ Log spend</button><button class="sm" onclick="openForm('vars','${c.id}')">Edit</button><button class="sm" onclick="del('vars','${c.id}')">Delete</button></div>
 ${c.log.length?`<details ${OPEN.has(c.id)?'open':''} ontoggle="this.open?OPEN.add('${c.id}'):OPEN.delete('${c.id}')"><summary>${c.log.length} logged</summary>${c.log.map(l=>`<div class="row"><div class="g"><b>${f(l.amt)}</b><small>${fd(l.d)}${l.note?' · '+esc(l.note):''}</small></div><button class="ic" onclick="delLog('${c.id}','${l.id}')" aria-label="Delete">✕</button></div>`).join('')}</details>`:''}</div>`}).join('')}</section>
-<section><div class="hd"><h2>Savings & goals</h2><button class="p" onclick="openForm('savings')">+ Add</button></div>
+<section style="--sc:#14b8a6"><div class="hd"><h2>Savings & goals</h2><button class="p" onclick="openForm('savings')">+ Add</button></div>
 ${S.savings.map(x=>row('savings',x,`Target ${f(x.target)}${x.due?' · due '+fd(x.due):''}`,f(x.amount)+'<small>this month</small>')).join('')}
 <div class="row"><div class="g"><b>Total planned savings</b><small>Savings rate ${(T.inc?T.sav/T.inc*100:0).toFixed(1)}% of income</small></div><div class="a">${f(T.sav)}</div></div>
 <small>Note: your credit card payment is in both fixed expenses and savings, so it is counted twice. Edit or remove one if that’s not intended.</small></section>
-<section><div class="hd"><h2>Where I can save more</h2>${sg.length?`<button class="sm p" onclick="applyAll()">Apply all</button>`:''}</div>
+<section style="--sc:#9333ea"><div class="hd"><h2>Where I can save more</h2>${sg.length?`<button class="sm p" onclick="applyAll()">Apply all</button>`:''}</div>
 <small>Biggest variable costs</small>${top.map(c=>`<div class="sg"><span>${esc(c.name)}</span><b>${f(base(c))} · ${T.vt?Math.round(base(c)/T.vt*100):0}%</b></div>`).join('')}
 ${small}
 <div style="margin-top:10px"><small>Suggested cuts</small></div>
 ${sg.length?sg.map(s=>`<div class="sg"><div><b>${esc(s.c.name)}</b><br><small>${s.over?'Over budget':'Trim idea'}: cut by ${f(s.cut)} → cap ${f(s.nc)}</small></div><button class="sm" onclick="setCap('${s.c.id}',${s.nc})">Apply</button></div>`).join('')+`<div class="al g" style="margin-top:8px">Follow all and you save ${f(tot)} a month. Money left over becomes ${f(T.left+tot)}.</div>`:'<div class="al g">Nothing to cut right now.</div>'}</section>`}
-function wi(el,id){const c=S.vars.find(x=>x.id===id),v=parseFloat(el.value),o=$('#wi-'+id);if(isNaN(v)){o.innerHTML='';return}
+function wi(el,id){const c=S.vars.find(x=>x.id===id),v=num(el.value),o=$('#wi-'+id);if(el.value.trim()===''){o.innerHTML='';return}
  const s=sp(c),sv=Math.max(c.cap,s)-Math.max(v,s);
  o.innerHTML=(v<s?`Already spent ${f(s)}. `:'')+`Saves <b class="${sv>0?'ok':''}">${f(sv)}</b> → left over ${f(T.left+sv)} <button class="sm" onclick="setCap('${id}',${v})">Apply</button>`}
 function setCap(id,v){S.vars.find(c=>c.id===id).cap=Math.max(0,v);render()}
@@ -136,14 +139,14 @@ function openForm(k,id,cid){
  $('#ff').innerHTML=sc.f.map(([n,l,t])=>{const v=it[n];let inp;
   if(t==='day')inp=`<input name="${n}" type="date" required value="${S.month}-${p2(Math.min(v,T.dim))}">`;
   else if(t.includes('|'))inp=`<select name="${n}">${t.split('|').map(o=>`<option ${o===v?'selected':''}>${o}</option>`).join('')}</select>`;
-  else inp=`<input name="${n}" type="${t}" ${t==='number'?'step="0.01" min="0" inputmode="decimal" required':n==='name'?'required':''} value="${esc(v)}">`;
+  else inp=`<input name="${n}" type="${t==='number'?'text':t}" ${t==='number'?'inputmode="decimal" required':n==='name'?'required':''} value="${esc(v)}">`;
   return`<label>${l}${inp}</label>`}).join('');
  $('#dlg').showModal()}
 function submitForm(e){e.preventDefault();const d=new FormData(e.target),o={};
- SC[ED.k].f.forEach(([n,l,t])=>{let v=d.get(n);if(t==='number')v=parseFloat(v)||0;else if(t==='day')v=parseInt(String(v).slice(8))||1;o[n]=v});
+ SC[ED.k].f.forEach(([n,l,t])=>{let v=d.get(n);if(t==='number')v=num(v);else if(t==='day')v=parseInt(String(v).slice(8))||1;o[n]=v});
  if(ED.k==='log')S.vars.find(x=>x.id===ED.cid).log.push({id:uid(),amt:o.amt,note:o.note,d:new Date().toISOString().slice(0,10)});
  else if(ED.id)Object.assign(S[ED.k].find(x=>x.id===ED.id),o);else S[ED.k].push({id:uid(),...o});
- $('#dlg').close();render()}
+ $('#dlg').close();render();toast('Saved')}
 function toast(msg,undo){const t=$('#toast');t.style.display='flex';t.innerHTML=`<span>${msg}</span>`+(undo?'<button onclick="undo()">Undo</button>':'');clearTimeout(toast.t);toast.t=setTimeout(()=>t.style.display='none',6000)}
 function snap(msg){UN=JSON.stringify(S);toast(msg,1)}
 function undo(){if(UN){S=JSON.parse(UN);UN=null;$('#toast').style.display='none';render()}}
