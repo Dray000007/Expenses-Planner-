@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en-GB"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Monthly Expenses Planner</title>
+<style>
+:root{--bg:#f4f6f9;--card:#fff;--tx:#141a22;--mut:#667085;--bd:#e3e7ee;--ac:#2563eb;--ok:#15803d;--bad:#c62828;--badbg:#fdecec;--okbg:#e8f6ec;--tr:#e9edf3;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e1218;--card:#171d27;--tx:#e8ecf2;--mut:#98a2b3;--bd:#283040;--ac:#6ea0ff;--ok:#4ade80;--bad:#ff7b7b;--badbg:#3a1a1c;--okbg:#14301d;--tr:#262e3b}}
+:root[data-theme="dark"]{--bg:#0e1218;--card:#171d27;--tx:#e8ecf2;--mut:#98a2b3;--bd:#283040;--ac:#6ea0ff;--ok:#4ade80;--bad:#ff7b7b;--badbg:#3a1a1c;--okbg:#14301d;--tr:#262e3b}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:760px;margin:0 auto;padding:14px 14px 60px}
+h1{font-size:20px;margin:0}h2{font-size:16px;margin:0}small,.mut{color:var(--mut);font-size:12.5px}
+section{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px;margin:14px 0}
+.hd{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+.top{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
+button{font:inherit;cursor:pointer;border:1px solid var(--bd);background:var(--card);color:var(--tx);border-radius:9px;padding:7px 11px}
+button.p{background:var(--ac);border-color:var(--ac);color:#fff}button.ic{padding:4px 9px;color:var(--mut)}button.sm{padding:3px 9px;font-size:13px}
+input,select{font:inherit;color:var(--tx);background:var(--bg);border:1px solid var(--bd);border-radius:9px;padding:8px 10px;width:100%}
+.kp{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}@media(min-width:560px){.kp{grid-template-columns:repeat(4,1fr)}}
+.kpi{background:var(--bg);border-radius:11px;padding:10px}.kpi b{display:block;font-size:18px;margin-top:2px}
+.big{grid-column:span 2;background:var(--okbg)}.big.neg{background:var(--badbg)}.big b{font-size:26px}
+.bad{color:var(--bad)}.ok{color:var(--ok)}
+.al{background:var(--badbg);color:var(--bad);border-radius:10px;padding:9px 12px;margin:6px 0;font-weight:500}.al.g{background:var(--okbg);color:var(--ok)}
+.row{display:flex;align-items:center;gap:6px;padding:9px 0;border-top:1px solid var(--bd)}.row:first-of-type{border-top:0}
+.g{flex:1;min-width:0}.g b{display:block;overflow-wrap:anywhere}.a{text-align:right;font-weight:600;white-space:nowrap}.a small{display:block;font-weight:400}
+.br{display:grid;grid-template-columns:104px 1fr 74px;gap:8px;align-items:center;margin:5px 0;font-size:13px}.br em{font-style:normal;text-align:right}
+.bt,.pr{background:var(--tr);border-radius:6px;height:10px;overflow:hidden}.bt i,.pr i{display:block;height:100%;border-radius:6px}
+.cat{border-top:1px solid var(--bd);padding:11px 0}.cat:first-of-type{border-top:0}
+.cr{display:flex;justify-content:space-between;gap:8px;margin-bottom:5px}.bs{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.wi{display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap}.wi input{width:110px}.wi span{font-size:13px}
+details{margin-top:6px}summary{cursor:pointer;color:var(--mut);font-size:13px}
+.sg{display:flex;justify-content:space-between;gap:8px;padding:8px 0;border-top:1px solid var(--bd)}
+dialog{border:1px solid var(--bd);border-radius:14px;background:var(--card);color:var(--tx);width:min(92vw,400px);padding:16px}
+dialog::backdrop{background:#0008}label{display:block;margin:10px 0;font-size:13px;color:var(--mut)}label input,label select{margin-top:4px}
+#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--tx);color:var(--bg);padding:9px 14px;border-radius:10px;display:none;gap:10px;align-items:center;z-index:9;max-width:92vw}
+#toast button{background:transparent;color:inherit;border-color:currentColor;padding:2px 9px}
+</style></head><body>
+<main id="app"></main>
+<dialog id="dlg"><form id="fm" onsubmit="submitForm(event)"><h2 id="dt"></h2><div id="ff"></div>
+<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px"><button type="button" onclick="dlg.close()">Cancel</button><button class="p">Save</button></div></form></dialog>
+<div id="toast"></div>
+<script>
+const $=s=>document.querySelector(s),K='planner.v1',uid=()=>Math.random().toString(36).slice(2,9);
+const f=n=>new Intl.NumberFormat('en-GB',{style:'currency',currency:'GBP'}).format(Math.round((n||0)*100)/100);
+const p2=n=>String(n).padStart(2,'0'),esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const sum=(a,k)=>a.reduce((t,x)=>t+(+x[k]||0),0),sp=c=>c.log.reduce((t,l)=>t+l.amt,0);
+const DISC=/deliver|takeaway|vending|snack|corner|eating|cash|misc|leisure|subscr/i;
+function def(){
+ const v=[['Groceries',80],['Transport',40],['Delivery / Takeaway',60],['Vending / Snacks',40],['Corner shops',30],['Eating out',40],['Cash / Misc',30],['Leisure',30],['Subscriptions',20]];
+ return{month:'2026-11',opening:0,
+  income:[{id:uid(),name:'Salary',amount:2416,day:27,freq:'monthly'}],
+  fixed:[['Rent',450,1],['Student loan',150,5],['Contribution',300,28],['Cybersecurity training',99,10],['Credit card payment',300,20]].map(([name,amount,day])=>({id:uid(),name,amount,day})),
+  vars:v.map(([name,cap])=>({id:uid(),name,cap,log:[]})),
+  savings:[['General savings',700,700,''],['Nigeria family payment (₦100,000)',56,56,''],['Niece’s birthday present',35,35,'2026-12-27'],['Credit card balance',300,754,'']].map(([name,amount,target,due])=>({id:uid(),name,amount,target,due}))}}
+let S,T,ED,UN;
+try{S=JSON.parse(localStorage.getItem(K))}catch(e){}
+if(!S||!S.income)S=def();
+const save=()=>{try{localStorage.setItem(K,JSON.stringify(S))}catch(e){}};
+const ym=()=>S.month.split('-').map(Number);
+const dl=d=>{const[y,m]=ym();return new Date(y,m-1,d).toLocaleDateString('en-GB',{day:'numeric',month:'short'})};
+const fd=d=>d?new Date(d+'T00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}):'';
+function occ(i){const dim=T?T.dim:new Date(ym()[0],ym()[1],0).getDate();if(i.freq!=='weekly')return[Math.min(i.day,dim)];const a=[];for(let d=(i.day-1)%7+1;d<=dim;d+=7)a.push(d);return a}
+function calc(){
+ const[y,m]=ym(),dim=new Date(y,m,0).getDate();T={dim};
+ const inc=S.income.reduce((t,i)=>t+i.amount*occ(i).length,0),fix=sum(S.fixed,'amount'),sav=sum(S.savings,'amount');
+ const vt=S.vars.reduce((t,c)=>t+Math.max(c.cap,sp(c)),0),left=inc-fix-vt-sav;
+ const n=new Date(),now=n.getFullYear()*12+n.getMonth(),mm=y*12+m-1,cur=now===mm,el=cur?n.getDate():dim;
+ const pv=c=>{const s=sp(c);return cur&&s>0?Math.max(s,s/el*dim):mm<now?s:Math.max(c.cap,s)};
+ const pvt=S.vars.reduce((t,c)=>t+pv(c),0),end=(+S.opening||0)+inc-fix-sav-pvt;
+ const pds=S.income.flatMap(occ),pd=pds.length?Math.min(...pds):1;let b=+S.opening||0,neg=0;
+ for(let d=1;d<=dim;d++){S.income.forEach(i=>{if(occ(i).includes(d))b+=i.amount});S.fixed.forEach(x=>{if(Math.min(x.day,dim)===d)b-=x.amount});if(d===pd)b-=sav;b-=pvt/dim;if(b<-.5&&!neg)neg=d}
+ T={dim,inc,fix,vt,sav,left,end,neg,pd,spent:S.vars.reduce((t,c)=>t+sp(c),0),caps:sum(S.vars,'cap')}}
+function sugg(){return S.vars.map(c=>{const s=sp(c),base=Math.max(c.cap,s);
+ if(!(s>c.cap||(T.left<0&&DISC.test(c.name)&&c.cap>=15)))return null;
+ const cut=Math.min(base,Math.max(5,Math.round(base*.3/5)*5));return{c,cut,nc:base-cut,over:s>c.cap}}).filter(Boolean)}
+const kpi=(l,v,c='')=>`<div class="kpi"><small>${l}</small><b class="${c}">${v}</b></div>`;
+const row=(k,x,sub,amt)=>`<div class="row"><div class="g"><b>${esc(x.name)}</b><small>${sub}</small></div><div class="a">${amt}</div><button class="ic" onclick="openForm('${k}','${x.id}')" aria-label="Edit">✎</button><button class="ic" onclick="del('${k}','${x.id}')" aria-label="Delete">✕</button></div>`;
+const OPEN=new Set();
+function render(){
+ calc();save();const[y,m]=ym();
+ const al=[];
+ if(T.left<0)al.push(`Overspending: your plan is ${f(-T.left)} more than your income.`);
+ S.vars.filter(c=>sp(c)>c.cap).forEach(c=>al.push(`${esc(c.name)} is ${f(sp(c)-c.cap)} over budget.`));
+ if(T.neg)al.push(`Your balance is projected to drop below £0 on day ${T.neg}${T.neg<T.pd?`, before payday on day ${T.pd}`:''}. Check your opening balance.`);
+ if(T.end<0)al.push(`Projected month-end balance is ${f(T.end)}.`);
+ const rows=[['Fixed',T.fix,'#6366f1'],['Savings',T.sav,'#16a34a'],...S.vars.map(c=>[c.name,Math.max(c.cap,sp(c)),'#f59e0b'])].filter(r=>r[1]>0).sort((a,b)=>b[1]-a[1]),mx=rows[0]?rows[0][1]:1;
+ const sg=sugg(),tot=sum(sg,'cut');
+ const base=c=>Math.max(c.cap,sp(c)),top=[...S.vars].sort((a,b)=>base(b)-base(a)).slice(0,3);
+ const small=S.vars.map(c=>{const a=c.log.filter(l=>l.amt<=5);return a.length>=3?`<div class="al">${a.length} small purchases in ${esc(c.name)} (${f(sum(a.map(l=>({v:l.amt})),'v'))} total) — they add up fast.</div>`:''}).join('');
+ $('#app').innerHTML=`
+<div class="top"><div><h1>Monthly Planner</h1><small>${new Date(y,m-1).toLocaleDateString('en-GB',{month:'long',year:'numeric'})} · ${T.dim} days</small></div>
+<div style="display:flex;gap:6px;flex-wrap:wrap"><button onclick="newMonth()">New month</button><button onclick="exportCsv()">Export CSV</button><button onclick="resetAll()">Reset</button></div></div>
+<section><div class="hd"><h2>Dashboard</h2><label style="margin:0;display:flex;gap:6px;align-items:center">Opening balance <input type="number" step="0.01" style="width:100px" value="${S.opening}" onchange="S.opening=parseFloat(this.value)||0;render()"></label></div>
+${al.length?al.map(a=>`<div class="al">⚠ ${a}</div>`).join(''):'<div class="al g">✓ On track: no overspending and no shortfalls projected.</div>'}
+<div class="kp" style="margin-top:8px">${kpi('Total income',f(T.inc))}${kpi('Fixed expenses',f(T.fix))}${kpi('Variable (planned)',f(T.vt))}${kpi('Savings · '+(T.inc?(T.sav/T.inc*100).toFixed(1):0)+'% of income',f(T.sav))}
+<div class="kpi big ${T.left<0?'neg':''}"><small>Money left over (income − fixed − variable − savings)</small><b class="${T.left<0?'bad':'ok'}">${f(T.left)}</b></div>
+${kpi('Weekly budget (left ÷ 4)',f(T.left/4),T.left<0?'bad':'')}${kpi('Daily budget',f(T.left/T.dim),T.left<0?'bad':'')}
+${kpi('Projected end balance',f(T.end),T.end<0?'bad':'ok')}${kpi('Variable spent so far',f(T.spent))}</div></section>
+<section><div class="hd"><h2>Where the month goes</h2></div>${rows.map(([n,v,c])=>`<div class="br"><span>${esc(n)}</span><div class="bt"><i style="width:${v/mx*100}%;background:${c}"></i></div><em>${f(v)}</em></div>`).join('')||'<small>Nothing yet.</small>'}</section>
+<section><div class="hd"><h2>Income</h2><button class="p" onclick="openForm('income')">+ Add</button></div>
+${S.income.map(i=>row('income',i,`${dl(i.day)} · ${i.freq}${i.freq==='weekly'?` · ${occ(i).length} paydays this month`:''}`,f(i.amount*occ(i).length)+(i.freq==='weekly'?`<small>${f(i.amount)} each</small>`:''))).join('')}
+<div class="row"><div class="g"><b>Total monthly income</b></div><div class="a">${f(T.inc)}</div></div></section>
+<section><div class="hd"><h2>Fixed expenses</h2><button class="p" onclick="openForm('fixed')">+ Add</button></div>
+${S.fixed.map(x=>row('fixed',x,'Due '+dl(x.day),f(x.amount))).join('')}
+<div class="row"><div class="g"><b>Total fixed</b></div><div class="a">${f(T.fix)}</div></div></section>
+<section><div class="hd"><div><h2>Variable expenses</h2><small>Budget ${f(T.caps)} · Spent ${f(T.spent)}</small></div><button class="p" onclick="openForm('vars')">+ Category</button></div>
+${S.vars.map(c=>{const s=sp(c),l=c.cap-s,pc=c.cap?Math.min(100,s/c.cap*100):s?100:0;return`<div class="cat"><div class="cr"><b>${esc(c.name)}</b><span><b class="${l<0?'bad':''}">${f(s)}</b> / ${f(c.cap)}</span></div>
+<div class="pr"><i style="width:${pc}%;background:${l<0?'var(--bad)':pc>80?'#f59e0b':'var(--ok)'}"></i></div>
+<small class="${l<0?'bad':''}">${l<0?'Over by '+f(-l):f(l)+' left'}</small>
+<div class="wi">What if cap £<input type="number" inputmode="decimal" min="0" step="1" placeholder="e.g. ${Math.max(0,Math.round(c.cap*.7))}" oninput="wi(this,'${c.id}')"><span id="wi-${c.id}"></span></div>
+<div class="bs"><button class="sm p" onclick="openForm('log',null,'${c.id}')">+ Log spend</button><button class="sm" onclick="openForm('vars','${c.id}')">Edit</button><button class="sm" onclick="del('vars','${c.id}')">Delete</button></div>
+${c.log.length?`<details ${OPEN.has(c.id)?'open':''} ontoggle="this.open?OPEN.add('${c.id}'):OPEN.delete('${c.id}')"><summary>${c.log.length} logged</summary>${c.log.map(l=>`<div class="row"><div class="g"><b>${f(l.amt)}</b><small>${fd(l.d)}${l.note?' · '+esc(l.note):''}</small></div><button class="ic" onclick="delLog('${c.id}','${l.id}')" aria-label="Delete">✕</button></div>`).join('')}</details>`:''}</div>`}).join('')}</section>
+<section><div class="hd"><h2>Savings & goals</h2><button class="p" onclick="openForm('savings')">+ Add</button></div>
+${S.savings.map(x=>row('savings',x,`Target ${f(x.target)}${x.due?' · due '+fd(x.due):''}`,f(x.amount)+'<small>this month</small>')).join('')}
+<div class="row"><div class="g"><b>Total planned savings</b><small>Savings rate ${(T.inc?T.sav/T.inc*100:0).toFixed(1)}% of income</small></div><div class="a">${f(T.sav)}</div></div>
+<small>Note: your credit card payment is in both fixed expenses and savings, so it is counted twice. Edit or remove one if that’s not intended.</small></section>
+<section><div class="hd"><h2>Where I can save more</h2>${sg.length?`<button class="sm p" onclick="applyAll()">Apply all</button>`:''}</div>
+<small>Biggest variable costs</small>${top.map(c=>`<div class="sg"><span>${esc(c.name)}</span><b>${f(base(c))} · ${T.vt?Math.round(base(c)/T.vt*100):0}%</b></div>`).join('')}
+${small}
+<div style="margin-top:10px"><small>Suggested cuts</small></div>
+${sg.length?sg.map(s=>`<div class="sg"><div><b>${esc(s.c.name)}</b><br><small>${s.over?'Over budget':'Trim idea'}: cut by ${f(s.cut)} → cap ${f(s.nc)}</small></div><button class="sm" onclick="setCap('${s.c.id}',${s.nc})">Apply</button></div>`).join('')+`<div class="al g" style="margin-top:8px">Follow all and you save ${f(tot)} a month. Money left over becomes ${f(T.left+tot)}.</div>`:'<div class="al g">Nothing to cut right now.</div>'}</section>`}
+function wi(el,id){const c=S.vars.find(x=>x.id===id),v=parseFloat(el.value),o=$('#wi-'+id);if(isNaN(v)){o.innerHTML='';return}
+ const s=sp(c),sv=Math.max(c.cap,s)-Math.max(v,s);
+ o.innerHTML=(v<s?`Already spent ${f(s)}. `:'')+`Saves <b class="${sv>0?'ok':''}">${f(sv)}</b> → left over ${f(T.left+sv)} <button class="sm" onclick="setCap('${id}',${v})">Apply</button>`}
+function setCap(id,v){S.vars.find(c=>c.id===id).cap=Math.max(0,v);render()}
+function applyAll(){sugg().forEach(s=>s.c.cap=s.nc);render()}
+const SC={
+ income:{d:{name:'',amount:'',day:1,freq:'monthly'},f:[['name','Source name','text'],['amount','Amount (£)','number'],['day','Payday date','day'],['freq','How often','monthly|weekly']]},
+ fixed:{d:{name:'',amount:'',day:1},f:[['name','Name','text'],['amount','Amount (£)','number'],['day','Due date','day']]},
+ vars:{d:{name:'',cap:''},f:[['name','Category','text'],['cap','Monthly budget cap (£)','number']]},
+ savings:{d:{name:'',amount:'',target:'',due:''},f:[['name','Goal / pot','text'],['amount','Saving this month (£)','number'],['target','Target amount (£)','number'],['due','Due date (optional)','date']]},
+ log:{d:{amt:'',note:''},f:[['amt','Amount spent (£)','number'],['note','Note (optional)','text']]}};
+function openForm(k,id,cid){
+ const sc=SC[k],it=id?S[k].find(x=>x.id===id):{...sc.d};ED={k,id,cid};
+ $('#dt').textContent=(id?'Edit ':'Add ')+({income:'income',fixed:'fixed expense',vars:'variable category',savings:'saving',log:'spending'}[k]);
+ $('#ff').innerHTML=sc.f.map(([n,l,t])=>{const v=it[n];let inp;
+  if(t==='day')inp=`<input name="${n}" type="date" required value="${S.month}-${p2(Math.min(v,T.dim))}">`;
+  else if(t.includes('|'))inp=`<select name="${n}">${t.split('|').map(o=>`<option ${o===v?'selected':''}>${o}</option>`).join('')}</select>`;
+  else inp=`<input name="${n}" type="${t}" ${t==='number'?'step="0.01" min="0" inputmode="decimal" required':n==='name'?'required':''} value="${esc(v)}">`;
+  return`<label>${l}${inp}</label>`}).join('');
+ $('#dlg').showModal()}
+function submitForm(e){e.preventDefault();const d=new FormData(e.target),o={};
+ SC[ED.k].f.forEach(([n,l,t])=>{let v=d.get(n);if(t==='number')v=parseFloat(v)||0;else if(t==='day')v=parseInt(String(v).slice(8))||1;o[n]=v});
+ if(ED.k==='log')S.vars.find(x=>x.id===ED.cid).log.push({id:uid(),amt:o.amt,note:o.note,d:new Date().toISOString().slice(0,10)});
+ else if(ED.id)Object.assign(S[ED.k].find(x=>x.id===ED.id),o);else S[ED.k].push({id:uid(),...o});
+ $('#dlg').close();render()}
+function toast(msg,undo){const t=$('#toast');t.style.display='flex';t.innerHTML=`<span>${msg}</span>`+(undo?'<button onclick="undo()">Undo</button>':'');clearTimeout(toast.t);toast.t=setTimeout(()=>t.style.display='none',6000)}
+function snap(msg){UN=JSON.stringify(S);toast(msg,1)}
+function undo(){if(UN){S=JSON.parse(UN);UN=null;$('#toast').style.display='none';render()}}
+function del(k,id){snap('Deleted');S[k]=S[k].filter(x=>x.id!==id);render()}
+function delLog(cid,id){snap('Deleted');const c=S.vars.find(x=>x.id===cid);c.log=c.log.filter(l=>l.id!==id);render()}
+function newMonth(){snap('Started a new month: fixed costs, income, savings and caps carried forward');
+ S.opening=Math.round(T.end*100)/100;const[y,m]=ym(),d=new Date(y,m,1);S.month=d.getFullYear()+'-'+p2(d.getMonth()+1);S.vars.forEach(c=>c.log=[]);render()}
+function resetAll(){snap('Reset to starter data');S=def();render()}
+async function exportCsv(){
+ const q=v=>`"${String(v).replace(/"/g,'""')}"`,r=[['Section','Name','Planned (GBP)','Actual (GBP)','Detail']];
+ S.income.forEach(i=>r.push(['Income',i.name,i.amount*occ(i).length,'',`${i.freq}, payday ${dl(i.day)}`]));
+ S.fixed.forEach(x=>r.push(['Fixed',x.name,x.amount,'','Due '+dl(x.day)]));
+ S.vars.forEach(c=>r.push(['Variable',c.name,c.cap,sp(c),'Left '+(c.cap-sp(c)).toFixed(2)]));
+ S.vars.forEach(c=>c.log.forEach(l=>r.push(['Spending log',c.name,'',l.amt,l.d+(l.note?' '+l.note:'')])));
+ S.savings.forEach(x=>r.push(['Savings',x.name,x.amount,'',`Target ${x.target}${x.due?', due '+x.due:''}`]));
+ r.push(['Summary','Total income',T.inc,'',''],['Summary','Total fixed',T.fix,'',''],['Summary','Total variable (planned)',T.vt,T.spent,''],['Summary','Total savings',T.sav,'',(T.inc?T.sav/T.inc*100:0).toFixed(1)+'% of income'],['Summary','Money left over',T.left.toFixed(2),'',''],['Summary','Projected end balance',T.end.toFixed(2),'','']);
+ const csv='\ufeff'+r.map(x=>x.map(q).join(',')).join('\n');
+ try{const d=typeof claude!=='undefined'&&await claude.use('downloads');if(d){await d.save({filename:`planner-${S.month}.csv`,data:csv});toast('CSV ready');return}}catch(e){if(e&&e.code==='declined')return}
+ const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download=`planner-${S.month}.csv`;document.body.appendChild(a);a.click();a.remove();toast('CSV downloaded')}
+render();
+</script></body></html>
