@@ -55,12 +55,19 @@ function def(){
   savings:[['General savings',700,700,''],['Nigeria family payment (₦100,000)',56,56,''],['Niece’s birthday present',35,35,'2026-12-27'],['Credit card balance',300,754,'']].map(([name,amount,target,due])=>({id:uid(),name,amount,target,due}))}}
 let S,T,ED,UN;
 try{S=JSON.parse(localStorage.getItem(K))}catch(e){}
-if(!S||!S.income)S=def();
-const save=()=>{try{localStorage.setItem(K,JSON.stringify(S))}catch(e){}};
+if(!S||typeof S!=='object')S=def();
+function clean(){const N=v=>{v=parseFloat(v);return isFinite(v)?v:0},A=k=>Array.isArray(S[k])?S[k].filter(x=>x&&typeof x==='object'):[],T0=v=>v==null?'':String(v),I=x=>x.id?String(x.id):uid(),D=x=>Math.min(31,Math.max(1,parseInt(x)||1));
+ if(!/^\d{4}-\d{2}$/.test(S.month))S.month='2026-11';S.opening=N(S.opening);
+ S.income=A('income').map(x=>({id:I(x),name:T0(x.name),amount:N(x.amount),day:D(x.day),freq:x.freq==='weekly'?'weekly':'monthly'}));
+ S.fixed=A('fixed').map(x=>({id:I(x),name:T0(x.name),amount:N(x.amount),day:D(x.day)}));
+ S.vars=A('vars').map(x=>({id:I(x),name:T0(x.name),cap:N(x.cap),log:(Array.isArray(x.log)?x.log:[]).filter(l=>l&&typeof l==='object').map(l=>({id:I(l),amt:N(l.amt),note:T0(l.note),d:T0(l.d)}))}));
+ S.savings=A('savings').map(x=>({id:I(x),name:T0(x.name),amount:N(x.amount),target:N(x.target),due:T0(x.due)}));S.history=(Array.isArray(S.history)?S.history:[]).filter(h=>h&&typeof h==='object'&&h.data&&typeof h.data==='object'&&h.sum&&typeof h.sum==='object'&&Array.isArray(h.data.income)&&Array.isArray(h.data.fixed)&&Array.isArray(h.data.vars)&&Array.isArray(h.data.savings)&&/^\d{4}-\d{2}$/.test(h.data.month)).map(h=>({...h,id:h.id?String(h.id):uid(),month:String(h.data.month),saved:T0(h.saved)}));S.rolled=T0(S.rolled)}
+clean();
+const save=() => {try{localStorage.setItem(K,JSON.stringify(S))}catch(e){}};
 const ym=()=>S.month.split('-').map(Number);
 const dl=d=>{const[y,m]=ym();return new Date(y,m-1,d).toLocaleDateString('en-GB',{day:'numeric',month:'short'})};
 const fd=d=>d?new Date(d+'T00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}):'';
-function occ(i){const dim=T?T.dim:new Date(ym()[0],ym()[1],0).getDate();if(i.freq!=='weekly')return[Math.min(i.day,dim)];const a=[];for(let d=(i.day-1)%7+1;d<=dim;d+=7)a.push(d);return a}
+function occ(i,dm){const dim=dm||(T?T.dim:new Date(ym()[0],ym()[1],0).getDate());if(i.freq!=='weekly')return[Math.min(i.day,dim)];const a=[];for(let d=(i.day-1)%7+1;d<=dim;d+=7)a.push(d);return a}
 function calc(){
  const[y,m]=ym(),dim=new Date(y,m,0).getDate();T={dim};
  const inc=S.income.reduce((t,i)=>t+i.amount*occ(i).length,0),fix=sum(S.fixed,'amount'),sav=sum(S.savings,'amount');
@@ -68,7 +75,7 @@ function calc(){
  const n=new Date(),now=n.getFullYear()*12+n.getMonth(),mm=y*12+m-1,cur=now===mm,el=cur?n.getDate():dim;
  const pv=c=>{const s=sp(c);return cur&&s>0?Math.max(s,s/el*dim):mm<now?s:Math.max(c.cap,s)};
  const pvt=S.vars.reduce((t,c)=>t+pv(c),0),end=(+S.opening||0)+inc-fix-sav-pvt;
- const pds=S.income.flatMap(occ),pd=pds.length?Math.min(...pds):1;let b=+S.opening||0,neg=0;
+ const pds=S.income.flatMap(i=>occ(i)),pd=pds.length?Math.min(...pds):1;let b=+S.opening||0,neg=0;
  for(let d=1;d<=dim;d++){S.income.forEach(i=>{if(occ(i).includes(d))b+=i.amount});S.fixed.forEach(x=>{if(Math.min(x.day,dim)===d)b-=x.amount});if(d===pd)b-=sav;b-=pvt/dim;if(b<-.5&&!neg)neg=d}
  T={dim,inc,fix,vt,sav,left,end,neg,pd,spent:S.vars.reduce((t,c)=>t+sp(c),0),caps:sum(S.vars,'cap')}}
 function sugg(){return S.vars.map(c=>{const s=sp(c),base=Math.max(c.cap,s);
@@ -78,9 +85,9 @@ const kpi=(l,v,c='')=>`<div class="kpi"><small>${l}</small><b class="${c}">${v}<
 const row=(k,x,sub,amt)=>`<div class="row"><div class="g"><b>${esc(x.name)}</b><small>${sub}</small></div><div class="a">${amt}</div><button class="ic" onclick="openForm('${k}','${x.id}')" aria-label="Edit">✎</button><button class="ic" onclick="del('${k}','${x.id}')" aria-label="Delete">✕</button></div>`;
 const OPEN=new Set();
 const num=v=>parseFloat(String(v).replace(/[^0-9.\-]/g,''))||0;
-function render(){const y=scrollY;try{_render()}catch(e){console.error(e);$('#app').insertAdjacentHTML('afterbegin',`<div class="al">Something went wrong: ${esc(e.message)}. <button onclick="resetAll()">Reset data</button></div>`)}scrollTo(0,y)}
+function render(){const y=window.scrollY||0;try{_render();addArchive()}catch(e0){try{clean();_render();addArchive()}catch(e){console.error(e);$('#app').insertAdjacentHTML('afterbegin',`<div class="al">Something went wrong: ${esc(e.message)}. <button onclick="resetAll()">Reset data</button></div>`)}}window.scrollTo(0,y)}
 function _render(){
- calc();save();const[y,m]=ym();
+ clean();calc();save();const[y,m]=ym();
  const al=[];
  if(T.left<0)al.push(`Overspending: your plan is ${f(-T.left)} more than your income.`);
  S.vars.filter(c=>sp(c)>c.cap).forEach(c=>al.push(`${esc(c.name)} is ${f(sp(c)-c.cap)} over budget.`));
@@ -92,7 +99,7 @@ function _render(){
  const small=S.vars.map(c=>{const a=c.log.filter(l=>l.amt<=5);return a.length>=3?`<div class="al">${a.length} small purchases in ${esc(c.name)} (${f(sum(a.map(l=>({v:l.amt})),'v'))} total) — they add up fast.</div>`:''}).join('');
  $('#app').innerHTML=`
 <div class="top"><div><h1>Monthly Planner</h1><small>${new Date(y,m-1).toLocaleDateString('en-GB',{month:'long',year:'numeric'})} · ${T.dim} days</small></div>
-<div style="display:flex;gap:6px;flex-wrap:wrap"><button onclick="newMonth()">New month</button><button onclick="exportCsv()">Export CSV</button><button onclick="resetAll()">Reset</button></div></div>
+<div style="display:flex;gap:6px;flex-wrap:wrap"><button onclick="newMonth()">New month</button><button onclick="exportCsv()">CSV</button><button onclick="exportPdf()">PDF</button><button onclick="resetAll()">Reset</button></div></div>
 <section style="--sc:#2563eb"><div class="hd"><h2>Dashboard</h2><label style="margin:0;display:flex;gap:6px;align-items:center">Opening balance <input type="text" inputmode="decimal" style="width:100px" value="${S.opening}" onchange="S.opening=num(this.value);render()"></label></div>
 ${al.length?al.map(a=>`<div class="al">⚠ ${a}</div>`).join(''):'<div class="al g">✓ On track: no overspending and no shortfalls projected.</div>'}
 <div class="kp" style="margin-top:8px">${kpi('Total income',f(T.inc))}${kpi('Fixed expenses',f(T.fix))}${kpi('Variable (planned)',f(T.vt))}${kpi('Savings · '+(T.inc?(T.sav/T.inc*100).toFixed(1):0)+'% of income',f(T.sav))}
@@ -146,25 +153,70 @@ function submitForm(e){e.preventDefault();const d=new FormData(e.target),o={};
  SC[ED.k].f.forEach(([n,l,t])=>{let v=d.get(n);if(t==='number')v=num(v);else if(t==='day')v=parseInt(String(v).slice(8))||1;o[n]=v});
  if(ED.k==='log')S.vars.find(x=>x.id===ED.cid).log.push({id:uid(),amt:o.amt,note:o.note,d:new Date().toISOString().slice(0,10)});
  else if(ED.id)Object.assign(S[ED.k].find(x=>x.id===ED.id),o);else S[ED.k].push({id:uid(),...o});
- $('#dlg').close();render();toast('Saved')}
+ $('#dlg').close();render();toast(ED.id?'Saved':'Added')}
 function toast(msg,undo){const t=$('#toast');t.style.display='flex';t.innerHTML=`<span>${msg}</span>`+(undo?'<button onclick="undo()">Undo</button>':'');clearTimeout(toast.t);toast.t=setTimeout(()=>t.style.display='none',6000)}
 function snap(msg){UN=JSON.stringify(S);toast(msg,1)}
 function undo(){if(UN){S=JSON.parse(UN);UN=null;$('#toast').style.display='none';render()}}
-function del(k,id){snap('Deleted');S[k]=S[k].filter(x=>x.id!==id);render()}
+function del(k,id){snap('Deleted');S[k]=(S[k]||[]).filter(x=>x.id!==id);render()}
 function delLog(cid,id){snap('Deleted');const c=S.vars.find(x=>x.id===cid);c.log=c.log.filter(l=>l.id!==id);render()}
 function newMonth(){snap('Started a new month: fixed costs, income, savings and caps carried forward');
  S.opening=Math.round(T.end*100)/100;const[y,m]=ym(),d=new Date(y,m,1);S.month=d.getFullYear()+'-'+p2(d.getMonth()+1);S.vars.forEach(c=>c.log=[]);render()}
 function resetAll(){snap('Reset to starter data');S=def();render()}
-async function exportCsv(){
- const q=v=>`"${String(v).replace(/"/g,'""')}"`,r=[['Section','Name','Planned (GBP)','Actual (GBP)','Detail']];
- S.income.forEach(i=>r.push(['Income',i.name,i.amount*occ(i).length,'',`${i.freq}, payday ${dl(i.day)}`]));
- S.fixed.forEach(x=>r.push(['Fixed',x.name,x.amount,'','Due '+dl(x.day)]));
- S.vars.forEach(c=>r.push(['Variable',c.name,c.cap,sp(c),'Left '+(c.cap-sp(c)).toFixed(2)]));
- S.vars.forEach(c=>c.log.forEach(l=>r.push(['Spending log',c.name,'',l.amt,l.d+(l.note?' '+l.note:'')])));
- S.savings.forEach(x=>r.push(['Savings',x.name,x.amount,'',`Target ${x.target}${x.due?', due '+x.due:''}`]));
- r.push(['Summary','Total income',T.inc,'',''],['Summary','Total fixed',T.fix,'',''],['Summary','Total variable (planned)',T.vt,T.spent,''],['Summary','Total savings',T.sav,'',(T.inc?T.sav/T.inc*100:0).toFixed(1)+'% of income'],['Summary','Money left over',T.left.toFixed(2),'',''],['Summary','Projected end balance',T.end.toFixed(2),'','']);
- const csv='\ufeff'+r.map(x=>x.map(q).join(',')).join('\n');
- try{const d=typeof claude!=='undefined'&&await claude.use('downloads');if(d){await d.save({filename:`planner-${S.month}.csv`,data:csv});toast('CSV ready');return}}catch(e){if(e&&e.code==='declined')return}
- const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download=`planner-${S.month}.csv`;document.body.appendChild(a);a.click();a.remove();toast('CSV downloaded')}
+const JSPDF='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+function loadPdf(){return new Promise((ok,no)=>{if(window.jspdf)return ok();const s=document.createElement('script');s.src=JSPDF;s.onload=ok;s.onerror=()=>no(new Error('pdf library'));document.head.appendChild(s)})}
+async function saveBlob(name,blob){
+ try{const d=typeof claude!=='undefined'&&await claude.use('downloads');if(d){await d.save({filename:name,data:blob});toast('Downloaded '+name);return}}catch(e){if(e&&e.code==='declined')return}
+ const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000);toast('Downloaded '+name)}
+function summ(d){const sv=S,st=T;try{S=d;calc();return{...T}}finally{S=sv;T=st}}
+function csvOf(d,t){const spd=c=>c.log.reduce((a,l)=>a+l.amt,0),r=[['Section','Name','Planned (GBP)','Actual (GBP)','Detail']];
+ d.income.forEach(i=>r.push(['Income',i.name,i.amount*occ(i,t.dim).length,'',`${i.freq}, payday day ${i.day}`]));
+ d.fixed.forEach(x=>r.push(['Fixed',x.name,x.amount,'','Due day '+x.day]));
+ d.vars.forEach(c=>r.push(['Variable',c.name,c.cap,spd(c),'Left '+(c.cap-spd(c)).toFixed(2)]));
+ d.vars.forEach(c=>c.log.forEach(l=>r.push(['Spending log',c.name,'',l.amt,l.d+(l.note?' '+l.note:'')])));
+ d.savings.forEach(x=>r.push(['Savings',x.name,x.amount,'',`Target ${x.target}${x.due?', due '+x.due:''}`]));
+ r.push(['Summary','Total income',t.inc,'',''],['Summary','Total fixed',t.fix,'',''],['Summary','Total variable (planned)',t.vt,t.spent,''],['Summary','Total savings',t.sav,'',(t.inc?t.sav/t.inc*100:0).toFixed(1)+'% of income'],['Summary','Money left over',t.left,'',''],['Summary','Projected end balance',t.end,'','']);
+ return'\ufeff'+r.map(x=>x.map(v=>`"${String(typeof v==='number'?+v.toFixed(2):v).replace(/"/g,'""')}"`).join(',')).join('\n')}
+function exportCsv(){saveBlob(`planner-${S.month}.csv`,new Blob([csvOf(S,T)],{type:'text/csv'}))}
+async function makePdf(d,t){
+ await loadPdf();const{jsPDF}=window.jspdf,doc=new jsPDF({unit:'pt',format:'a4'}),W=595,M=40;let y=0;
+ const cl=s=>String(s).replace(/₦/g,'NGN ').replace(/[’‘]/g,"'").replace(/[“”]/g,'"').replace(/[^\x20-\x7E£]/g,'');
+ const mny=n=>(n<0?'-':'')+'£'+Math.abs(n||0).toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2});
+ const[yy,mo]=d.month.split('-').map(Number),title=new Date(yy,mo-1).toLocaleDateString('en-GB',{month:'long',year:'numeric'});
+ doc.setFillColor(79,70,229);doc.rect(0,0,W,70,'F');doc.setTextColor(255);doc.setFont('helvetica','bold');doc.setFontSize(20);doc.text('Monthly Expenses Planner',M,32);doc.setFontSize(12);doc.text(title,M,52);y=96;
+ const nl=h=>{y+=h||16;if(y>800){doc.addPage();y=50}};
+ const ln=(a,b,o={})=>{doc.setFont('helvetica',o.b?'bold':'normal');doc.setFontSize(10.5);doc.setTextColor(...(o.c||[30,30,30]));doc.text(cl(a),M+6,y);if(b!=null)doc.text(cl(b),W-M-6,y,{align:'right'});nl()};
+ const hd=(s,c)=>{nl(6);doc.setFillColor(...c);doc.rect(M,y-13,W-2*M,20,'F');doc.setTextColor(255);doc.setFont('helvetica','bold');doc.setFontSize(11.5);doc.text(s,M+8,y+1);nl(24)};
+ const RED=[198,40,40],spd=c=>c.log.reduce((a,l)=>a+l.amt,0);
+ hd('Summary',[37,99,235]);
+ ln('Total income',mny(t.inc));ln('Fixed expenses',mny(t.fix));ln('Variable (planned)',mny(t.vt));ln('Variable spent',mny(t.spent));
+ ln('Savings',mny(t.sav)+(t.inc?`  (${(t.sav/t.inc*100).toFixed(1)}% of income)`:''));
+ ln('Money left over',mny(t.left),{b:1,c:t.left<0?RED:[21,128,61]});ln('Weekly budget',mny(t.left/4));ln('Daily budget',mny(t.left/t.dim));ln('Projected end balance',mny(t.end),{c:t.end<0?RED:undefined});
+ hd('Income',[22,163,74]);d.income.forEach(i=>ln(`${i.name} (${i.freq}, day ${i.day})`,mny(i.amount*occ(i,t.dim).length)));
+ hd('Fixed expenses',[99,102,241]);d.fixed.forEach(x=>ln(`${x.name} (due day ${x.day})`,mny(x.amount)));
+ hd('Variable expenses',[217,119,6]);d.vars.forEach(c=>{const s=spd(c),l=c.cap-s;ln(c.name,`${mny(s)} / ${mny(c.cap)}   ${l<0?'over '+mny(-l):mny(l)+' left'}`,{c:l<0?RED:undefined})});
+ hd('Savings & goals',[13,148,136]);d.savings.forEach(x=>ln(`${x.name} (target ${mny(x.target)}${x.due?', due '+x.due:''})`,mny(x.amount)));
+ if(d.vars.some(c=>c.log.length)){hd('Spending log',[100,116,139]);d.vars.forEach(c=>c.log.forEach(l=>ln(`${c.name}: ${l.d}${l.note?' - '+l.note:''}`,mny(l.amt))))}
+ nl(10);doc.setFontSize(8);doc.setTextColor(120);doc.text('Generated '+new Date().toLocaleDateString('en-GB'),M,y);
+ return doc.output('blob')}
+async function exportPdf(){try{await saveBlob(`planner-${S.month}.pdf`,await makePdf(S,T))}catch(e){toast('PDF unavailable here, try CSV')}}
+const arch=id=>(S.history||[]).find(h=>h.id===id);
+async function pdfOf(id,mode){const h=arch(id);if(!h)return;
+ try{const blob=await makePdf(h.data,h.sum),name=`planner-${h.month}.pdf`;
+  if(mode==='share'&&navigator.canShare){const file=new File([blob],name,{type:'application/pdf'});if(navigator.canShare({files:[file]})){try{await navigator.share({files:[file],title:'Expenses '+h.month});return}catch(e){if(e&&e.name==='AbortError')return}}}
+  await saveBlob(name,blob)}catch(e){toast('PDF unavailable here, downloading CSV');csvArch(id)}}
+function csvArch(id){const h=arch(id);if(h)saveBlob(`planner-${h.month}.csv`,new Blob([csvOf(h.data,h.sum)],{type:'text/csv'}))}
+function delArch(id){snap('Archive deleted');S.history=S.history.filter(h=>h.id!==id);render()}
+function archiveNow(){const t=summ(S),data=JSON.parse(JSON.stringify(S));delete data.history;delete data.rolled;
+ S.history=(S.history||[]).filter(h=>h.month!==S.month);S.history.unshift({id:uid(),month:S.month,saved:new Date().toISOString().slice(0,10),sum:t,data});return t}
+function rollForward(t,key){S.opening=Math.round(t.end*100)/100;S.vars.forEach(c=>c.log=[]);do{const[y,m]=ym(),d=new Date(y,m,1);S.month=d.getFullYear()+'-'+p2(d.getMonth()+1)}while(key&&S.month<=key)}
+function newMonth(){snap('Month saved to Archive. New month started');rollForward(archiveNow());render()}
+function autoRoll(){const n=new Date(),key=n.getFullYear()+'-'+p2(n.getMonth()+1);if(n.getDate()<25||S.rolled===key)return false;
+ S.rolled=key;if(S.month>key)return true;rollForward(archiveNow(),key);return true}
+function addArchive(){const lb=k=>{const[y,m]=k.split('-').map(Number);return new Date(y,m-1).toLocaleDateString('en-GB',{month:'long',year:'numeric'})};
+ const H=S.history||[];$('#app').insertAdjacentHTML('beforeend',`<section style="--sc:#0ea5e9"><div class="hd"><div><h2>Archive</h2><small>On the 25th of each month the month is saved here and a fresh one starts.</small></div><button class="sm" onclick="exportPdf()">This month PDF</button></div>`+
+ (H.length?H.map(h=>{const s=Object.assign({inc:0,fix:0,vt:0,sav:0,left:0},h.sum);return`<div class="cat"><div class="cr"><b>${lb(h.month)}</b><b class="${s.left<0?'bad':'ok'}">${f(s.left)} left</b></div><small>Income ${f(s.inc)} · Fixed ${f(s.fix)} · Variable ${f(s.vt)} · Savings ${f(s.sav)}<br>Saved ${fd(h.saved)}</small><div class="bs"><button class="sm p" onclick="pdfOf('${h.id}')">PDF</button><button class="sm" onclick="pdfOf('${h.id}','share')">Share</button><button class="sm" onclick="csvArch('${h.id}')">CSV</button><button class="sm" onclick="delArch('${h.id}')">Delete</button></div></div>`}).join(''):'<small>No archived months yet.</small>')+'</section>')}
+function rollCheck(){const pre=JSON.stringify(S);if(autoRoll()){UN=pre;save();render();toast('It’s the 25th: last month is saved in the Archive and a new month has started',1)}}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)rollCheck()});setInterval(rollCheck,600000);
+{const pre=JSON.stringify(S);if(autoRoll()){UN=pre;save();setTimeout(()=>toast('It’s the 25th: last month is saved in the Archive and a new month has started',1),400)}}
 render();
 </script></body></html>
