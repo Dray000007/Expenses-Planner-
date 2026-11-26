@@ -36,6 +36,7 @@ dialog::backdrop{background:#0008}label{display:block;margin:10px 0;font-size:13
 #toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--tx);color:var(--bg);padding:9px 14px;border-radius:10px;display:none;gap:10px;align-items:center;z-index:9;max-width:92vw}
 #toast button{background:transparent;color:inherit;border-color:currentColor;padding:2px 9px}
 .kp .kpi:nth-child(10){background:rgba(34,197,94,.17)}.kp .kpi:nth-child(11){background:rgba(14,165,233,.17)}#cdb p{margin:8px 0}
+.ed{cursor:pointer}.kp .kpi.cb{background:rgba(244,63,94,.15)}.kp .kpi.big{background:var(--okbg)}.kp .kpi.big.neg{background:var(--badbg)}
 </style></head><body>
 <main id="app"></main>
 <dialog id="dlg"><form id="fm" onsubmit="submitForm(event)"><h2 id="dt"></h2><div id="ff"></div>
@@ -50,13 +51,13 @@ const p2=n=>String(n).padStart(2,'0'),esc=s=>String(s).replace(/[&<>"']/g,c=>({'
 const sum=(a,k)=>a.reduce((t,x)=>t+(+x[k]||0),0),sp=c=>c.log.reduce((t,l)=>t+l.amt,0);
 const DISC=/deliver|takeaway|vending|snack|corner|eating|cash|misc|leisure|subscr/i;
 function def(){
- const v=[['Groceries',130],['Transport',50],['Delivery / Takeaway',60],['Vending / Snacks',40],['Corner shops',30],['Eating out',45],['Cash / Misc',30],['Leisure',25],['Subscriptions',15]];
  const n=new Date(),k=new Date(n.getFullYear(),n.getMonth()+(n.getDate()>=25?1:0),1);
- return{v:2,month:k.getFullYear()+'-'+p2(k.getMonth()+1),opening:100,
+ return{v:3,ov:{income:null,fixed:null,variable:null,savings:null},month:k.getFullYear()+'-'+p2(k.getMonth()+1),opening:100,
   income:[{id:uid(),name:'Salary',amount:2416,day:27,freq:'monthly'}],
-  fixed:[['Rent (via Abdul)',450,1],['Student loan (via Abdul)',150,5],['Contribution',300,28],['Cybersecurity training',99,10]].map(([name,amount,day])=>({id:uid(),name,amount,day})),
-  vars:[...v.map(([name,cap])=>({id:uid(),name,cap,log:[]})),{id:uid(),name:'Credit card payment',cap:300,card:true,log:[]}],
-  savings:[{id:uid(),name:'General savings',amount:701.16,target:701.16,due:'',ngn:0,rate:0},{id:uid(),name:'Nigeria family payment',amount:54.84,target:54.84,due:'',ngn:100000,rate:1823.5},{id:uid(),name:'Niece’s birthday present',amount:35,target:35,due:'2026-12-27',ngn:0,rate:0}],
+  fixed:[['Rent (via Abdul)',450,1,0],['Student loan (via Abdul)',150,5,0],['Contribution',300,28,1],['Cybersecurity training',99,10,0]].map(([name,amount,day,group])=>({id:uid(),name,amount,day,group:!!group})),
+  vars:[{id:uid(),name:'Credit card payment',cap:300,card:true,log:[]},{id:uid(),name:'Personal expenses',cap:0,auto:true,log:[]},{id:uid(),name:'Niece’s birthday present',cap:35,due:'2026-12-27',log:[]},{id:uid(),name:'Nigeria family payment',cap:54.84,ngn:100000,rate:1823.5,log:[]}],
+  savings:[{id:uid(),name:'General savings',amount:701.16,target:701.16,due:'',ngn:0,rate:0}],
+  grp:{name:'Savings group',start:600,paid:false},
   card:{name:'HSBC credit card',start:754,log:[]},history:[],rolled:''}}
 let S,T,ED,UN;
 try{S=JSON.parse(localStorage.getItem(K))}catch(e){}
@@ -75,13 +76,25 @@ function migrate(){if((S.v||0)>=2)return;
  if(!ok(S.card))S.card={name:'HSBC credit card',start:oS?(parseFloat(oS.target)||754):(had?754:0),log:[]};
  if(had&&!(parseFloat(S.opening)>0))S.opening=100;
  S.v=2}
+function migrate3(){if((S.v||0)>=3)return;
+ const ok=x=>x&&typeof x==='object',L=k=>Array.isArray(S[k])?S[k].filter(ok):[],vr=L('vars'),sv=L('savings'),fx=L('fixed');
+ if(!vr.length&&!fx.length){S.v=3;return}
+ fx.forEach(x=>{if(/contribution/i.test(x.name)&&!fx.some(y=>y.group))x.group=true});
+ const DEF={Groceries:130,Transport:50,'Delivery / Takeaway':60,'Vending / Snacks':40,'Corner shops':30,'Eating out':45,'Cash / Misc':30,Leisure:25,Subscriptions:15},lv=vr.filter(c=>!c.card&&c.name in DEF);
+ let nv=vr;
+ if(lv.length===9&&lv.every(c=>parseFloat(c.cap)===DEF[c.name]&&!(Array.isArray(c.log)&&c.log.length))){const rest=vr.filter(c=>!lv.includes(c));nv=[...rest.filter(c=>c.card),{id:uid(),name:'Personal expenses',cap:0,auto:true,log:[]},...rest.filter(c=>!c.card)]}
+ const mv=sv.filter(x=>/niece|nigeria/i.test(x.name));
+ mv.forEach(x=>{if(!nv.some(c=>c.name===x.name))nv.push({id:uid(),name:x.name,cap:parseFloat(x.amount)||0,due:x.due||'',ngn:parseFloat(x.ngn)||0,rate:parseFloat(x.rate)||0,log:[]})});
+ S.vars=nv;S.savings=sv.filter(x=>!mv.includes(x));S.fixed=fx;
+ if(!ok(S.grp))S.grp={name:'Savings group',start:600,paid:false};
+ S.v=3}
 function clean(){const N=v=>{v=parseFloat(v);return isFinite(v)?v:0},A=k=>Array.isArray(S[k])?S[k].filter(x=>x&&typeof x==='object'):[],T0=v=>v==null?'':String(v),I=x=>x.id?String(x.id):uid(),D=x=>Math.min(31,Math.max(1,parseInt(x)||1));
  if(!/^\d{4}-\d{2}$/.test(S.month))S.month='2026-11';S.opening=N(S.opening);
  S.income=A('income').map(x=>({id:I(x),name:T0(x.name),amount:N(x.amount),day:D(x.day),freq:x.freq==='weekly'?'weekly':'monthly'}));
- S.fixed=A('fixed').map(x=>({id:I(x),name:T0(x.name),amount:N(x.amount),day:D(x.day)}));
- S.vars=A('vars').map(x=>({id:I(x),name:T0(x.name),cap:N(x.cap),card:!!x.card,log:(Array.isArray(x.log)?x.log:[]).filter(l=>l&&typeof l==='object').map(l=>({id:I(l),amt:N(l.amt),note:T0(l.note),d:T0(l.d)}))}));
- S.savings=A('savings').map(x=>({id:I(x),name:T0(x.name),amount:N(x.amount),target:N(x.target),due:T0(x.due),ngn:N(x.ngn),rate:N(x.rate)}));const c0=S.card&&typeof S.card==='object'?S.card:{};S.card={name:T0(c0.name)||'HSBC credit card',start:N(c0.start),log:(Array.isArray(c0.log)?c0.log:[]).filter(l=>l&&typeof l==='object').map(l=>({id:I(l),amt:N(l.amt),note:T0(l.note),d:T0(l.d)}))};S.v=2;S.history=(Array.isArray(S.history)?S.history:[]).filter(h=>h&&typeof h==='object'&&h.data&&typeof h.data==='object'&&h.sum&&typeof h.sum==='object'&&Array.isArray(h.data.income)&&Array.isArray(h.data.fixed)&&Array.isArray(h.data.vars)&&Array.isArray(h.data.savings)&&/^\d{4}-\d{2}$/.test(h.data.month)).map(h=>({...h,id:h.id?String(h.id):uid(),month:String(h.data.month),saved:T0(h.saved)}));S.rolled=T0(S.rolled)}
-migrate();clean();
+ S.fixed=A('fixed').map(x=>({id:I(x),name:T0(x.name),amount:N(x.amount),day:D(x.day),group:!!x.group}));
+ S.vars=A('vars').map(x=>({id:I(x),name:T0(x.name),cap:N(x.cap),card:!!x.card,auto:!!x.auto,ngn:N(x.ngn),rate:N(x.rate),due:T0(x.due),log:(Array.isArray(x.log)?x.log:[]).filter(l=>l&&typeof l==='object').map(l=>({id:I(l),amt:N(l.amt),note:T0(l.note),d:T0(l.d)}))}));
+ S.savings=A('savings').map(x=>({id:I(x),name:T0(x.name),amount:N(x.amount),target:N(x.target),due:T0(x.due),ngn:N(x.ngn),rate:N(x.rate)}));const c0=S.card&&typeof S.card==='object'?S.card:{};S.card={name:T0(c0.name)||'HSBC credit card',start:N(c0.start),log:(Array.isArray(c0.log)?c0.log:[]).filter(l=>l&&typeof l==='object').map(l=>({id:I(l),amt:N(l.amt),note:T0(l.note),d:T0(l.d)}))};const o0=S.ov&&typeof S.ov==='object'?S.ov:{},ON=v=>v==null||v===''||!isFinite(parseFloat(v))?null:parseFloat(v);S.ov={income:ON(o0.income),fixed:ON(o0.fixed),variable:ON(o0.variable),savings:ON(o0.savings)};const g0=S.grp&&typeof S.grp==='object'?S.grp:{};S.grp={name:T0(g0.name)||'Savings group',start:N(g0.start),paid:!!g0.paid};S.v=Math.max(2,+S.v||0);S.history=(Array.isArray(S.history)?S.history:[]).filter(h=>h&&typeof h==='object'&&h.data&&typeof h.data==='object'&&h.sum&&typeof h.sum==='object'&&Array.isArray(h.data.income)&&Array.isArray(h.data.fixed)&&Array.isArray(h.data.vars)&&Array.isArray(h.data.savings)&&/^\d{4}-\d{2}$/.test(h.data.month)).map(h=>({...h,id:h.id?String(h.id):uid(),month:String(h.data.month),saved:T0(h.saved)}));S.rolled=T0(S.rolled)}
+migrate();migrate3();clean();
 const save=() => {try{localStorage.setItem(K,JSON.stringify(S))}catch(e){}};
 const ym=()=>S.month.split('-').map(Number);
 const dl=d=>{const[y,m]=ym();return new Date(y,m-1,d).toLocaleDateString('en-GB',{day:'numeric',month:'short'})};
@@ -89,16 +102,17 @@ const fd=d=>d?new Date(d+'T00:00').toLocaleDateString('en-GB',{day:'numeric',mon
 function occ(i,dm){const dim=dm||(T?T.dim:new Date(ym()[0],ym()[1],0).getDate());if(i.freq!=='weekly')return[Math.min(i.day,dim)];const a=[];for(let d=(i.day-1)%7+1;d<=dim;d+=7)a.push(d);return a}
 function calc(){
  const[y,m]=ym(),dim=new Date(y,m,0).getDate();T={dim};
- const inc=S.income.reduce((t,i)=>t+i.amount*occ(i).length,0),fix=sum(S.fixed,'amount'),sav=sum(S.savings,'amount');
- const vt=S.vars.reduce((t,c)=>t+Math.max(c.cap,sp(c)),0),op=+S.opening||0,left=op+inc-fix-vt-sav;
+ const ov=S.ov||{},inc0=S.income.reduce((t,i)=>t+i.amount*occ(i).length,0),fix0=sum(S.fixed,'amount'),sav0=sum(S.savings,'amount'),inc=ov.income!=null?+ov.income:inc0,fix=ov.fixed!=null?+ov.fixed:fix0,sav=ov.savings!=null?+ov.savings:sav0;
+ {const ac=S.vars.find(c=>c.auto),oth=S.vars.filter(c=>c!==ac).reduce((t,c)=>t+Math.max(c.cap,sp(c)),0);if(ac)ac.cap=Math.max(0,Math.round(((+S.opening||0)+inc-fix-sav-oth)*100)/100)}
+ const vt0=S.vars.reduce((t,c)=>t+Math.max(c.cap,sp(c)),0),vt=ov.variable!=null?+ov.variable:vt0,op=+S.opening||0,left=Math.round((op+inc-fix-vt-sav)*100)/100;
  const n=new Date(),now=n.getFullYear()*12+n.getMonth(),mm=y*12+m-1,cur=now===mm,el=cur?n.getDate():dim;
  const pv=c=>{const s=sp(c);return cur&&s>0?Math.max(s,s/el*dim):mm<now?s:Math.max(c.cap,s)};
- const pvt=S.vars.reduce((t,c)=>t+pv(c),0),end=(+S.opening||0)+inc-fix-sav-pvt;
+ const pvt=ov.variable!=null?+ov.variable:S.vars.reduce((t,c)=>t+pv(c),0),end=(+S.opening||0)+inc-fix-sav-pvt;
  const pds=S.income.flatMap(i=>occ(i)),pd=pds.length?Math.min(...pds):1;let b=+S.opening||0,neg=0;
  for(let d=1;d<=dim;d++){S.income.forEach(i=>{if(occ(i).includes(d))b+=i.amount});S.fixed.forEach(x=>{if(Math.min(x.day,dim)===d)b-=x.amount});if(d===pd)b-=sav;b-=pvt/dim;if(b<-.5&&!neg)neg=d}
- const cd=S.card&&typeof S.card==='object'?S.card:{start:0,log:[]},lv=S.vars.filter(c=>!c.card),cpay=S.vars.filter(c=>c.card).reduce((a,c)=>a+Math.max(c.cap,sp(c)),0),cspend=(cd.log||[]).reduce((a,l)=>a+(+l.amt||0),0),cstart=+cd.start||0;T={dim,inc,fix,vt,sav,left,end,neg,pd,op,avail:op+inc,out:fix+vt+sav,lcap:sum(lv,'cap'),lspent:lv.reduce((a,c)=>a+sp(c),0),cpay,cspend,cstart,cbal:cstart-cpay+cspend,spent:S.vars.reduce((t,c)=>t+sp(c),0),caps:sum(S.vars,'cap')}}
+ const cd=S.card&&typeof S.card==='object'?S.card:{start:0,log:[]},lv=S.vars.filter(c=>!c.card),cpay=S.vars.filter(c=>c.card).reduce((a,c)=>a+Math.max(c.cap,sp(c)),0),cspend=(cd.log||[]).reduce((a,l)=>a+(+l.amt||0),0),cstart=+cd.start||0,gp=S.fixed.filter(x=>x.group).reduce((a,x)=>a+x.amount,0),g=S.grp&&typeof S.grp==='object'?S.grp:{start:0,paid:false},gs=+g.start||0;T={dim,inc,fix,vt,sav,left,end,neg,pd,op,avail:op+inc,out:fix+vt+sav,lcap:sum(lv,'cap'),lspent:lv.reduce((a,c)=>a+sp(c),0),cpay,cspend,cstart,cbal:cstart-cpay+cspend,gpay:gp,gstart:gs,gpaid:!!g.paid,gnow:gs+(g.paid?gp:0),gafter:gs+gp,spent:S.vars.reduce((t,c)=>t+sp(c),0),caps:sum(S.vars,'cap')}}
 function sugg(){return S.vars.map(c=>{const s=sp(c),base=Math.max(c.cap,s);
- if(c.card||!(s>c.cap||(T.left<0&&DISC.test(c.name)&&c.cap>=15)))return null;
+ if(c.card||c.auto||!(s>c.cap||(T.left<0&&DISC.test(c.name)&&c.cap>=15)))return null;
  const cut=Math.min(base,Math.max(5,Math.round(base*.3/5)*5));return{c,cut,nc:base-cut,over:s>c.cap}}).filter(Boolean)}
 const kpi=(l,v,c='')=>`<div class="kpi"><small>${l}</small><b class="${c}">${v}</b></div>`;
 const row=(k,x,sub,amt)=>`<div class="row"><div class="g"><b>${esc(x.name)}</b><small>${sub}</small></div><div class="a">${amt}</div><button class="ic" onclick="openForm('${k}','${x.id}')" aria-label="Edit">✎</button><button class="ic" onclick="del('${k}','${x.id}')" aria-label="Delete">✕</button></div>`;
@@ -117,14 +131,13 @@ function _render(){
  const base=c=>Math.max(c.cap,sp(c)),top=S.vars.filter(c=>!c.card).sort((a,b)=>base(b)-base(a)).slice(0,3);
  const small=S.vars.map(c=>{const a=c.log.filter(l=>l.amt<=5);return a.length>=3?`<div class="al">${a.length} small purchases in ${esc(c.name)} (${f(sum(a.map(l=>({v:l.amt})),'v'))} total) — they add up fast.</div>`:''}).join('');
  $('#app').innerHTML=`
-<div class="top"><div><h1>Monthly Planner</h1><small>${new Date(y,m-1).toLocaleDateString('en-GB',{month:'long',year:'numeric'})} · ${T.dim} days</small></div>
+<div class="top"><div><h1>Monthly Planner</h1><small>${new Date(y,m-1).toLocaleDateString('en-GB',{month:'long',year:'numeric'})} · ${T.dim} days</small><button class="ic" style="color:#fff;padding:0 7px;margin-left:6px" onclick="openForm('month')" aria-label="Change month">✎</button></div>
 <div style="display:flex;gap:6px;flex-wrap:wrap"><button onclick="newMonth()">New month</button><button onclick="exportCsv()">CSV</button><button onclick="previewReport()">Preview</button><button onclick="exportPdf()">PDF</button><button onclick="resetAll()">Reset</button></div></div>
 <section style="--sc:#2563eb"><div class="hd"><h2>Dashboard</h2><label style="margin:0;display:flex;gap:6px;align-items:center">Opening balance (HSBC) <input type="text" inputmode="decimal" style="width:100px" value="${S.opening}" onchange="S.opening=num(this.value);render()"></label></div>
 ${al.length?al.map(a=>`<div class="al">⚠ ${a}</div>`).join(''):'<div class="al g">✓ On track: no overspending and no shortfalls projected.</div>'}
-<div class="kp" style="margin-top:8px">${kpi('Total income',f(T.inc))}${kpi('Fixed expenses',f(T.fix))}${kpi('Variable (living + card)',f(T.vt))}${kpi('Savings · '+(T.inc?(T.sav/T.inc*100).toFixed(1):0)+'% of income',f(T.sav))}
-<div class="kpi big ${T.left<0?'neg':''}"><small>Money left at month end (opening + income − fixed − variable − savings)</small><b class="${T.left<0?'bad':'ok'}">${f(T.left)}</b></div>
-${kpi('Weekly money left (÷ 4)',f(T.left/4),T.left<0?'bad':'')}${kpi('Daily money left',f(T.left/T.dim),T.left<0?'bad':'')}
-${kpi('Projected end balance',f(T.end),T.end<0?'bad':'ok')}${kpi('Variable spent so far',f(T.spent))}${kpi('Living budget (no card)',f(T.lcap))}${kpi('Weekly living budget (÷ 4)',f(T.lcap/4))}</div><small style="display:block;margin-top:8px">Available: ${f(T.avail)} (opening ${f(T.op)} + income ${f(T.inc)}) · Total out: ${f(T.out)} (fixed ${f(T.fix)} + variable ${f(T.vt)} + savings ${f(T.sav)})</small></section>
+<div class="kp" style="margin-top:8px">${ek('Total income',f(T.inc),'income',S.ov.income!=null)}${ek('Fixed expenses',f(T.fix),'fixed',S.ov.fixed!=null)}${ek('Variable expenses',f(T.vt),'variable',S.ov.variable!=null)}${ek('Savings · '+(T.inc?(T.sav/T.inc*100).toFixed(1):0)+'%',f(T.sav),'savings',S.ov.savings!=null)}
+<div class="kpi ed cb" onclick="openForm('fig',null,'cardbal')"><small>Credit card owed ✎</small><b class="${T.cbal>0?'bad':'ok'}">${f(-T.cbal)}</b></div>
+</div><small style="display:block;margin-top:8px">Tap any figure to edit it for this month. Available: ${f(T.avail)} (opening ${f(T.op)} + income ${f(T.inc)}) · Total out: ${f(T.out)} (fixed ${f(T.fix)} + variable ${f(T.vt)} + savings ${f(T.sav)})</small></section>
 <section style="--sc:#db2777"><div class="hd"><h2>Where the month goes</h2></div>${rows.map(([n,v,c])=>`<div class="br"><span>${esc(n)}</span><div class="bt"><i style="width:${v/mx*100}%;background:${c}"></i></div><em>${f(v)}</em></div>`).join('')||'<small>Nothing yet.</small>'}</section>
 <section style="--sc:#16a34a"><div class="hd"><h2>Income</h2><button class="p" onclick="openForm('income')">+ Add</button></div>
 ${S.income.map(i=>row('income',i,`${dl(i.day)} · ${i.freq}${i.freq==='weekly'?` · ${occ(i).length} paydays this month`:''}`,f(i.amount*occ(i).length)+(i.freq==='weekly'?`<small>${f(i.amount)} each</small>`:''))).join('')}
@@ -132,18 +145,18 @@ ${S.income.map(i=>row('income',i,`${dl(i.day)} · ${i.freq}${i.freq==='weekly'?`
 <section style="--sc:#6366f1"><div class="hd"><h2>Fixed expenses</h2><button class="p" onclick="openForm('fixed')">+ Add</button></div>
 ${S.fixed.map(x=>row('fixed',x,'Due '+dl(x.day),f(x.amount))).join('')}
 <div class="row"><div class="g"><b>Total fixed</b></div><div class="a">${f(T.fix)}</div></div></section>
-<section style="--sc:#f59e0b"><div class="hd"><div><h2>Variable expenses</h2><small>Total ${f(T.caps)} = living ${f(T.lcap)} + card payment ${f(T.caps-T.lcap)} · Spent ${f(T.spent)}</small></div><button class="p" onclick="openForm('vars')">+ Category</button></div>
+<section style="--sc:#f59e0b"><div class="hd"><div><h2>Variable expenses</h2><small>Total ${f(T.caps)} = other ${f(T.lcap)} + card payment ${f(T.caps-T.lcap)} · Spent ${f(T.spent)}</small></div><button class="p" onclick="openForm('vars')">+ Category</button></div>
 ${S.vars.map(c=>{const s=sp(c),l=c.cap-s,pc=c.cap?Math.min(100,s/c.cap*100):s?100:0;return`<div class="cat"><div class="cr"><b>${esc(c.name)}</b><span><b class="${l<0?'bad':''}">${f(s)}</b> / ${f(c.cap)}</span></div>
-<div class="pr"><i style="width:${pc}%;background:${l<0?'var(--bad)':pc>80?'#f59e0b':'var(--ok)'}"></i></div>
+${vsub(c)}<div class="pr"><i style="width:${pc}%;background:${l<0?'var(--bad)':pc>80?'#f59e0b':'var(--ok)'}"></i></div>
 <small class="${l<0?'bad':''}">${l<0?'Over by '+f(-l):f(l)+' left'}</small>
-${c.card?'<small>Debt repayment: counted once here and tracked in the Credit Card section.</small>':`<div class="wi">What if cap £<input type="text" inputmode="decimal" placeholder="e.g. ${Math.max(0,Math.round(c.cap*.7))}" oninput="wi(this,'${c.id}')"><span id="wi-${c.id}"></span></div>`}
+${c.card?'<small>Debt repayment: counted once here and tracked in the Credit Card section.</small>':c.auto?'':`<div class="wi">What if cap £<input type="text" inputmode="decimal" placeholder="e.g. ${Math.max(0,Math.round(c.cap*.7))}" oninput="wi(this,'${c.id}')"><span id="wi-${c.id}"></span></div>`}
 <div class="bs"><button class="sm p" onclick="openForm('log',null,'${c.id}')">+ Log spend</button><button class="sm" onclick="openForm('vars','${c.id}')">Edit</button><button class="sm" onclick="del('vars','${c.id}')">Delete</button></div>
-${c.log.length?`<details ${OPEN.has(c.id)?'open':''} ontoggle="this.open?OPEN.add('${c.id}'):OPEN.delete('${c.id}')"><summary>${c.log.length} logged</summary>${c.log.map(l=>`<div class="row"><div class="g"><b>${f(l.amt)}</b><small>${fd(l.d)}${l.note?' · '+esc(l.note):''}</small></div><button class="ic" onclick="delLog('${c.id}','${l.id}')" aria-label="Delete">✕</button></div>`).join('')}</details>`:''}</div>`}).join('')}</section>
+${c.log.length?`<details ${OPEN.has(c.id)?'open':''} ontoggle="this.open?OPEN.add('${c.id}'):OPEN.delete('${c.id}')"><summary>${c.log.length} logged</summary>${c.log.map(l=>`<div class="row"><div class="g"><b>${f(l.amt)}</b><small>${fd(l.d)}${l.note?' · '+esc(l.note):''}</small></div><button class="ic" onclick="openForm('log','${l.id}','${c.id}')" aria-label="Edit">✎</button><button class="ic" onclick="delLog('${c.id}','${l.id}')" aria-label="Delete">✕</button></div>`).join('')}</details>`:''}</div>`}).join('')}</section>
 <section style="--sc:#14b8a6"><div class="hd"><h2>Savings & goals</h2><button class="p" onclick="openForm('savings')">+ Add</button></div>
 ${S.savings.map(x=>row('savings',x,`${x.ngn>0&&x.rate>0?'₦'+x.ngn.toLocaleString('en-GB')+' at ₦'+x.rate.toLocaleString('en-GB',{maximumFractionDigits:2})+'/£ · ':''}Target ${f(x.target)}${x.due?' · due '+fd(x.due):''}`,f(x.amount)+'<small>this month</small>')).join('')}
 <div class="row"><div class="g"><b>Total planned savings</b><small>Savings rate ${(T.inc?T.sav/T.inc*100:0).toFixed(1)}% of income</small></div><div class="a">${f(T.sav)}</div></div>
 </section>
-${cardSec()}<section style="--sc:#9333ea"><div class="hd"><h2>Where I can save more</h2>${sg.length?`<button class="sm p" onclick="applyAll()">Apply all</button>`:''}</div>
+${grpSec()}${cardSec()}<section style="--sc:#9333ea"><div class="hd"><h2>Where I can save more</h2>${sg.length?`<button class="sm p" onclick="applyAll()">Apply all</button>`:''}</div>
 <small>Biggest living costs</small>${top.map(c=>`<div class="sg"><span>${esc(c.name)}</span><b>${f(base(c))} · ${T.lcap?Math.round(base(c)/T.lcap*100):0}%</b></div>`).join('')}
 ${small}
 <div style="margin-top:10px"><small>Suggested cuts</small></div>
@@ -155,28 +168,39 @@ function setCap(id,v){S.vars.find(c=>c.id===id).cap=Math.max(0,v);render()}
 function applyAll(){sugg().forEach(s=>s.c.cap=s.nc);render()}
 const SC={
  income:{d:{name:'',amount:'',day:1,freq:'monthly'},f:[['name','Source name','text'],['amount','Amount (£)','number'],['day','Payday date','day'],['freq','How often','monthly|weekly']]},
- fixed:{d:{name:'',amount:'',day:1},f:[['name','Name','text'],['amount','Amount (£)','number'],['day','Due date','day']]},
- vars:{d:{name:'',cap:''},f:[['name','Category','text'],['cap','Monthly budget cap (£)','number']]},
+ fixed:{d:{name:'',amount:'',day:1,grp:'no'},f:[['name','Name','text'],['amount','Amount (£)','number'],['day','Due date','day'],['grp','Savings group payment?','no|yes']]},
+ vars:{d:{name:'',cap:'',mode:'fixed amount',due:'',ngn:0,rate:0},f:[['name','Name','text'],['cap','Budget (£)','number'],['mode','Budget type','automatic|fixed amount'],['due','Due date (optional)','date'],['ngn','Amount in naira ₦ (optional, sets the £ budget)','numopt'],['rate','Exchange rate, ₦ per £ (optional)','numopt']]},
+ grp:{d:{name:'',start:''},f:[['name','Group name','text'],['start','Total saved before this month (£)','number']]},
  savings:{d:{name:'',amount:'',target:'',due:'',ngn:0,rate:0},f:[['name','Goal / pot','text'],['amount','Saving this month (£)','number'],['target','Target amount (£)','number'],['due','Due date (optional)','date'],['ngn','Amount in naira ₦ (optional, sets the £ amount)','numopt'],['rate','Exchange rate, ₦ per £ (optional)','numopt']]},
+ month:{d:{month:''},f:[['month','Month','month']]},
+ fig:{d:{amt:''},f:[['amt','Amount for this month (£)','number']]},
  card:{d:{name:'',start:''},f:[['name','Card name','text'],['start','Starting balance owed (£)','number']]},
  clog:{d:{amt:'',note:''},f:[['amt','Amount spent on card (£)','number'],['note','Note (optional)','text']]},
  log:{d:{amt:'',note:''},f:[['amt','Amount spent (£)','number'],['note','Note (optional)','text']]}};
 function openForm(k,id,cid){
- const sc=SC[k],it=k==='card'?S.card:id?S[k].find(x=>x.id===id):{...sc.d};ED={k,id,cid};
+ const sc=SC[k],it=k==='card'?S.card:k==='grp'?S.grp:k==='month'?{month:S.month}:k==='log'&&id?((S.vars.find(c=>c.id===cid)||{log:[]}).log.find(l=>l.id===id)||{...sc.d}):k==='clog'&&id?(S.card.log.find(l=>l.id===id)||{...sc.d}):id?S[k].find(x=>x.id===id):{...sc.d};ED={k,id,cid};if(k==='fig')ED.cid=cid;
  $('#dt').textContent=(id?'Edit ':'Add ')+({income:'income',fixed:'fixed expense',vars:'variable category',savings:'saving',log:'spending',clog:'card spending'}[k]);
  if(k==='card')$('#dt').textContent='Edit credit card';
+ if(k==='month')$('#dt').textContent='Change month';
+ if(k==='grp')$('#dt').textContent='Edit savings group';
+ if(k==='vars')it.mode=it.auto?'automatic':'fixed amount';
+ if(k==='fixed')it.grp=it.group?'yes':'no';
+ if(k==='fig'){it.amt=Math.round(figVal(cid)*100)/100;$('#dt').textContent='Edit '+FN[cid]}
  $('#ff').innerHTML=sc.f.map(([n,l,t])=>{const v=it[n];let inp;
   if(t==='day')inp=`<input name="${n}" type="date" required value="${S.month}-${p2(Math.min(v,T.dim))}">`;
   else if(t.includes('|'))inp=`<select name="${n}">${t.split('|').map(o=>`<option ${o===v?'selected':''}>${o}</option>`).join('')}</select>`;
   else inp=`<input name="${n}" type="${t==='number'||t==='numopt'?'text':t}" ${t==='number'?'inputmode="decimal" required':t==='numopt'?'inputmode="decimal"':n==='name'?'required':''} value="${t==='numopt'&&!v?'':esc(v)}">`;
   return`<label>${l}${inp}</label>`}).join('');
+ if(k==='fig'){$('#ff').insertAdjacentHTML('beforeend',cid==='cardbal'?'<small>Enter the amount you owe on the card, e.g. 454.</small>':`<small>This replaces the total for this month only. New month goes back to the item totals.</small>${S.ov[cid]!=null?`<div style="margin-top:8px"><button type="button" class="sm" onclick="clearFig('${cid}')">Use item totals</button></div>`:''}`)}
  $('#dlg').showModal()}
 function submitForm(e){e.preventDefault();const d=new FormData(e.target),o={};
  SC[ED.k].f.forEach(([n,l,t])=>{let v=d.get(n);if(t==='number'||t==='numopt')v=num(v);else if(t==='day')v=parseInt(String(v).slice(8))||1;o[n]=v});
+ if(ED.k==='vars'){o.auto=o.mode==='automatic';delete o.mode;if(o.ngn>0&&o.rate>0)o.cap=Math.round(o.ngn/o.rate*100)/100}
+ if(ED.k==='fixed'){o.group=o.grp==='yes';delete o.grp}
  if(ED.k==='savings'&&o.ngn>0&&o.rate>0)o.amount=Math.round(o.ngn/o.rate*100)/100;
- if(ED.k==='card')Object.assign(S.card,o);else if(ED.k==='clog')S.card.log.push({id:uid(),amt:o.amt,note:o.note,d:new Date().toISOString().slice(0,10)});else if(ED.k==='log')S.vars.find(x=>x.id===ED.cid).log.push({id:uid(),amt:o.amt,note:o.note,d:new Date().toISOString().slice(0,10)});
+ if(ED.k==='fig')setFig(ED.cid,o.amt);else if(ED.k==='grp')Object.assign(S.grp,o);else if(ED.k==='card')Object.assign(S.card,o);else if(ED.k==='month'){if(/^\d{4}-\d{2}$/.test(o.month))S.month=o.month}else if(ED.k==='clog'&&ED.id)Object.assign(S.card.log.find(l=>l.id===ED.id)||{},{amt:o.amt,note:o.note});else if(ED.k==='clog')S.card.log.push({id:uid(),amt:o.amt,note:o.note,d:new Date().toISOString().slice(0,10)});else if(ED.k==='log'&&ED.id)Object.assign(S.vars.find(x=>x.id===ED.cid).log.find(l=>l.id===ED.id)||{},{amt:o.amt,note:o.note});else if(ED.k==='log')S.vars.find(x=>x.id===ED.cid).log.push({id:uid(),amt:o.amt,note:o.note,d:new Date().toISOString().slice(0,10)});
  else if(ED.id)Object.assign(S[ED.k].find(x=>x.id===ED.id),o);else S[ED.k].push({id:uid(),...o});
- $('#dlg').close();render();toast(ED.id||ED.k==='card'?'Saved':'Added')}
+ $('#dlg').close();render();toast(ED.id||ED.k==='card'||ED.k==='month'||ED.k==='grp'?'Saved':'Added')}
 function toast(msg,undo){const t=$('#toast');t.style.display='flex';t.innerHTML=`<span>${msg}</span>`+(undo?'<button onclick="undo()">Undo</button>':'');clearTimeout(toast.t);toast.t=setTimeout(()=>t.style.display='none',6000)}
 function snap(msg){UN=JSON.stringify(S);toast(msg,1)}
 function undo(){if(UN){S=JSON.parse(UN);UN=null;$('#toast').style.display='none';render()}}
@@ -189,6 +213,20 @@ let CB;function confirmGo(){$('#cdlg').close();const fn=CB;CB=null;if(fn)fn()}
 function resetAll(){confirmBox('Reset to starter values?',`<p>Income, fixed, variable, savings, the credit card (£754 owed) and the opening balance (£100) go back to the starter values.</p><p>Your ${(S.history||[]).length} archived month(s) are kept.</p><p>You’ll get an Undo for a few seconds.</p>`,'Reset',doReset)}
 function doReset(){snap('Reset to starter values');const h=Array.isArray(S.history)?S.history:[],r=S.rolled;S=def();S.history=h;S.rolled=r||'';render()}
 function delCardLog(id){snap('Deleted');S.card.log=S.card.log.filter(l=>l.id!==id);render()}
+const FN={income:'total income',fixed:'total fixed expenses',variable:'total variable expenses',savings:'total savings',cardbal:'credit card balance owed'};
+const figVal=c=>c==='cardbal'?T.cbal:c==='income'?T.inc:c==='fixed'?T.fix:c==='variable'?T.vt:T.sav;
+function setFig(c,v){if(c==='cardbal')S.card.start=Math.round((v+T.cpay-T.cspend)*100)/100;else S.ov[c]=v}
+function clearFig(c){S.ov[c]=null;$('#dlg').close();render();toast('Back to item totals')}
+const ek=(l,v,k,e)=>`<div class="kpi ed" onclick="openForm('fig',null,'${k}')"><small>${l}${e?' · edited':''} ✎</small><b>${v}</b></div>`;
+function vsub(c){const a=[];if(c.auto)a.push('Automatic: what’s left after fixed, savings and your other variable payments');if(c.ngn>0&&c.rate>0)a.push('₦'+c.ngn.toLocaleString('en-GB')+' at ₦'+c.rate.toLocaleString('en-GB',{maximumFractionDigits:2})+'/£');if(c.due)a.push('due '+fd(c.due));return a.length?`<small style="display:block;margin-bottom:4px">${a.join(' · ')}</small>`:''}
+function togglePaid(){S.grp.paid=!S.grp.paid;render()}
+function grpSec(){const g=S.grp,has=S.fixed.some(x=>x.group);
+ return`<section style="--sc:#f59e0b"><div class="hd"><div><h2>Savings group — ${esc(g.name)}</h2><small>Your monthly payment is counted once, in Fixed expenses.</small></div><button class="sm" onclick="openForm('grp')">Edit</button></div>
+<div class="row"><div class="g"><b>Monthly contribution</b><small>${has?'From the Fixed expense marked as the savings group payment':'Mark one Fixed expense as the savings group payment'}</small></div><div class="a">${f(T.gpay)}</div></div>
+<div class="row"><div class="g"><b>Saved before this month</b></div><div class="a">${f(T.gstart)}</div></div>
+<div class="row"><div class="g"><b>This month’s payment</b><small>${T.gpaid?'Marked as paid':'Not marked as paid yet'}</small></div><div class="a">${f(T.gpay)}</div><button class="sm ${T.gpaid?'':'p'}" onclick="togglePaid()">${T.gpaid?'Undo paid':'Mark paid'}</button></div>
+<div class="row"><div class="g"><b>Total saved so far</b></div><div class="a">${f(T.gnow)}</div></div>
+<div class="row"><div class="g"><b>Total after this month’s payment</b></div><div class="a ok">${f(T.gafter)}</div></div></section>`}
 function cardSec(){const pc=T.cstart>0?Math.max(0,Math.min(100,T.cpay/T.cstart*100)):0,ow=T.cbal,cl=S.card.log||[];
  return`<section style="--sc:#e11d48"><div class="hd"><div><h2>Credit Card — ${esc(S.card.name)}</h2><small>Not counted in your totals. Only the payment in Variable counts, once.</small></div><button class="sm" onclick="openForm('card')">Edit card</button></div>
 <div class="row"><div class="g"><b>Card</b></div><div class="a">${esc(S.card.name)}</div></div>
@@ -198,7 +236,7 @@ function cardSec(){const pc=T.cstart>0?Math.max(0,Math.min(100,T.cpay/T.cstart*1
 <div class="row"><div class="g"><b>Current balance owed</b></div><div class="a ${ow>0?'bad':'ok'}">${f(-ow)}</div></div>
 <div class="row"><div class="g"><b>Amount left to pay</b></div><div class="a">${f(Math.max(0,ow))}</div></div>
 <div class="pr" style="margin:8px 0 4px"><i style="width:${pc}%;background:var(--ok)"></i></div><small>${pc.toFixed(1)}% of the starting balance paid off${ow<0?' · card is in credit by '+f(-ow):''}</small>
-${cl.length?`<details ${OPEN.has('card')?'open':''} ontoggle="this.open?OPEN.add('card'):OPEN.delete('card')"><summary>${cl.length} card purchase(s)</summary>${cl.map(l=>`<div class="row"><div class="g"><b>${f(l.amt)}</b><small>${fd(l.d)}${l.note?' · '+esc(l.note):''}</small></div><button class="ic" onclick="delCardLog('${l.id}')" aria-label="Delete">✕</button></div>`).join('')}</details>`:''}</section>`}
+${cl.length?`<details ${OPEN.has('card')?'open':''} ontoggle="this.open?OPEN.add('card'):OPEN.delete('card')"><summary>${cl.length} card purchase(s)</summary>${cl.map(l=>`<div class="row"><div class="g"><b>${f(l.amt)}</b><small>${fd(l.d)}${l.note?' · '+esc(l.note):''}</small></div><button class="ic" onclick="openForm('clog','${l.id}')" aria-label="Edit">✎</button><button class="ic" onclick="delCardLog('${l.id}')" aria-label="Delete">✕</button></div>`).join('')}</details>`:''}</section>`}
 const JSPDF='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
 function loadPdf(){return new Promise((ok,no)=>{if(window.jspdf)return ok();const s=document.createElement('script');s.src=JSPDF;s.onload=ok;s.onerror=()=>no(new Error('pdf library'));document.head.appendChild(s)})}
 async function saveBlob(name,blob){
@@ -212,7 +250,8 @@ function csvOf(d,t){const spd=c=>c.log.reduce((a,l)=>a+l.amt,0),z=v=>+v||0,r=[['
  d.vars.forEach(c=>c.log.forEach(l=>r.push(['Spending log',c.name,'',l.amt,l.d+(l.note?' '+l.note:'')])));
  d.savings.forEach(x=>r.push(['Savings',x.name,x.amount,'',`Target ${x.target}${x.due?', due '+x.due:''}${x.ngn>0&&x.rate>0?`, NGN ${x.ngn} at ${x.rate} per GBP`:''}`]));
  if(d.card&&t.cpay!=null)r.push(['Credit card','Starting balance owed',z(t.cstart),'',d.card.name||''],['Credit card','Payments this month',z(t.cpay),'','From Variable'],['Credit card','New spending on card',z(t.cspend),'',''],['Credit card','Current balance owed',z(t.cbal),'','Not counted in totals']);
- r.push(['Summary','Opening balance',z(t.op),'',''],['Summary','Total income',t.inc,'',''],['Summary','Total fixed',t.fix,'',''],['Summary','Total variable (living + card)',t.vt,t.spent,''],['Summary','Living budget (excl. card)',z(t.lcap),z(t.lspent),'Weekly '+(z(t.lcap)/4).toFixed(2)],['Summary','Total savings',t.sav,'',(t.inc?t.sav/t.inc*100:0).toFixed(1)+'% of income'],['Summary','Money left at month end',t.left,'',''],['Summary','Projected end balance',t.end,'','']);
+ if(d.grp&&t.gpay!=null)r.push(['Savings group','Saved before this month',z(t.gstart),'',d.grp.name||''],['Savings group','Payment this month',z(t.gpay),'',t.gpaid?'Paid':'Not marked paid'],['Savings group','Total after this month’s payment',z(t.gafter),'','']);
+ r.push(['Summary','Opening balance',z(t.op),'',''],['Summary','Total income',t.inc,'',''],['Summary','Total fixed',t.fix,'',''],['Summary','Total variable (living + card)',t.vt,t.spent,''],['Summary','Total savings',t.sav,'',(t.inc?t.sav/t.inc*100:0).toFixed(1)+'% of income'],['Summary','Money left at month end',t.left,'',''],['Summary','Projected end balance',t.end,'','']);
  return'\ufeff'+r.map(x=>x.map(v=>`"${String(typeof v==='number'?+v.toFixed(2):v).replace(/"/g,'""')}"`).join(',')).join('\n')}
 function exportCsv(){saveBlob(`planner-${S.month}.csv`,new Blob([csvOf(S,T)],{type:'text/csv'}))}
 async function makePdf(d,t){
@@ -226,14 +265,15 @@ async function makePdf(d,t){
  const hd=(s,c)=>{nl(6);doc.setFillColor(...c);doc.rect(M,y-13,W-2*M,20,'F');doc.setTextColor(255);doc.setFont('helvetica','bold');doc.setFontSize(11.5);doc.text(s,M+8,y+1);nl(24)};
  const RED=[198,40,40],spd=c=>c.log.reduce((a,l)=>a+l.amt,0);
  hd('Summary',[37,99,235]);
- if(t.op!=null)ln('Opening balance',mny(t.op));ln('Total income',mny(t.inc));ln('Fixed expenses',mny(t.fix));ln('Variable (living + card)',mny(t.vt));if(t.lcap!=null){ln('Living budget (excl. card)',mny(t.lcap));ln('Weekly living budget',mny(t.lcap/4))}ln('Variable spent',mny(t.spent));
+ if(t.op!=null)ln('Opening balance',mny(t.op));ln('Total income',mny(t.inc));ln('Fixed expenses',mny(t.fix));ln('Variable (living + card)',mny(t.vt));ln('Variable spent',mny(t.spent));
  ln('Savings',mny(t.sav)+(t.inc?`  (${(t.sav/t.inc*100).toFixed(1)}% of income)`:''));
- ln('Money left over',mny(t.left),{b:1,c:t.left<0?RED:[21,128,61]});ln('Weekly money left',mny(t.left/4));ln('Daily money left',mny(t.left/t.dim));ln('Projected end balance',mny(t.end),{c:t.end<0?RED:undefined});
+ ln('Money left over',mny(t.left),{b:1,c:t.left<0?RED:[21,128,61]});ln('Projected end balance',mny(t.end),{c:t.end<0?RED:undefined});
  hd('Income',[22,163,74]);d.income.forEach(i=>ln(`${i.name} (${i.freq}, day ${i.day})`,mny(i.amount*occ(i,t.dim).length)));
  hd('Fixed expenses',[99,102,241]);d.fixed.forEach(x=>ln(`${x.name} (due day ${x.day})`,mny(x.amount)));
  hd('Variable expenses',[217,119,6]);d.vars.forEach(c=>{const s=spd(c),l=c.cap-s;ln(c.name,`${mny(s)} / ${mny(c.cap)}   ${l<0?'over '+mny(-l):mny(l)+' left'}`,{c:l<0?RED:undefined})});
  hd('Savings & goals',[13,148,136]);d.savings.forEach(x=>ln(`${x.name} (target ${mny(x.target)}${x.due?', due '+x.due:''}${x.ngn>0&&x.rate>0?', NGN '+x.ngn+' at '+x.rate+'/GBP':''})`,mny(x.amount)));
  if(d.card&&t.cpay!=null){hd('Credit card - '+(d.card.name||'HSBC'),[225,29,72]);ln('Starting balance owed',mny(-t.cstart));ln('Payments this month',mny(t.cpay));ln('New spending on card',mny(t.cspend));ln('Current balance owed',mny(-t.cbal),{b:1,c:t.cbal>0?RED:[21,128,61]});ln('Paid off',t.cstart>0?Math.min(100,t.cpay/t.cstart*100).toFixed(1)+'%':'-')}
+ if(d.grp&&t.gpay!=null){hd('Savings group - '+(d.grp.name||''),[245,158,11]);ln('Saved before this month',mny(t.gstart));ln('Payment this month',mny(t.gpay)+(t.gpaid?' (paid)':''));ln('Total after this month',mny(t.gafter),{b:1})}
  if(d.vars.some(c=>c.log.length)){hd('Spending log',[100,116,139]);d.vars.forEach(c=>c.log.forEach(l=>ln(`${c.name}: ${l.d}${l.note?' - '+l.note:''}`,mny(l.amt))))}
  nl(10);doc.setFontSize(8);doc.setTextColor(120);doc.text('Generated '+new Date().toLocaleDateString('en-GB'),M,y);
  return doc.output('blob')}
@@ -242,13 +282,13 @@ function reportHtml(d,t){const z=v=>+v||0,spd=c=>c.log.reduce((a,l)=>a+l.amt,0),
  const H=(a,c)=>`<div style="background:${c};color:#fff;font-weight:700;padding:6px 10px;border-radius:6px;margin:12px 0 4px">${a}</div>`,RED='var(--bad)',GRN='var(--ok)';
  let h=`<div style="background:linear-gradient(120deg,#4f46e5,#7c3aed);color:#fff;border-radius:10px;padding:14px 16px"><b style="font-size:18px">Monthly Expenses Planner</b><br>${title}</div>`;
  h+=H('Summary','#2563eb')+(t.op!=null?R('Opening balance',f(t.op)):'')+R('Total income',f(t.inc))+R('Fixed expenses',f(t.fix))+R('Variable (living + card)',f(t.vt))+R('Variable spent',f(t.spent));
- if(t.lcap!=null)h+=R('Living budget (excl. card)',f(t.lcap))+R('Weekly living budget',f(t.lcap/4));
- h+=R('Savings',f(t.sav)+(t.inc?`  (${(t.sav/t.inc*100).toFixed(1)}% of income)`:''))+R('Money left',f(t.left),t.left<0?RED:GRN)+R('Weekly money left',f(t.left/4))+R('Daily money left',f(t.left/t.dim))+R('Projected end balance',f(t.end),t.end<0?RED:null);
+  h+=R('Savings',f(t.sav)+(t.inc?`  (${(t.sav/t.inc*100).toFixed(1)}% of income)`:''))+R('Money left',f(t.left),t.left<0?RED:GRN)+R('Projected end balance',f(t.end),t.end<0?RED:null);
  h+=H('Income','#16a34a')+d.income.map(i=>R(`${i.name} (${i.freq}, day ${i.day})`,f(i.amount*occ(i,t.dim).length))).join('');
  h+=H('Fixed expenses','#6366f1')+d.fixed.map(x=>R(`${x.name} (due day ${x.day})`,f(x.amount))).join('');
  h+=H('Variable expenses','#d97706')+d.vars.map(c=>{const sp2=spd(c),l=c.cap-sp2;return R(c.name,`${f(sp2)} / ${f(c.cap)}  ${l<0?'over '+f(-l):f(l)+' left'}`,l<0?RED:null)}).join('');
  h+=H('Savings & goals','#0d9488')+d.savings.map(x=>R(`${x.name} (target ${f(x.target)}${x.due?', due '+x.due:''}${x.ngn>0&&x.rate>0?', ₦'+x.ngn+' at '+x.rate+'/£':''})`,f(x.amount))).join('');
  if(d.card&&t.cpay!=null){const pc=t.cstart>0?Math.min(100,t.cpay/t.cstart*100):0;h+=H('Credit card — '+esc(d.card.name||'HSBC'),'#e11d48')+R('Starting balance owed',f(-t.cstart))+R('Payments this month',f(t.cpay))+R('New spending on card',f(t.cspend))+R('Current balance owed',f(-t.cbal),t.cbal>0?RED:GRN)+R('Paid off',pc.toFixed(1)+'%')}
+ if(d.grp&&t.gpay!=null)h+=H('Savings group — '+esc(d.grp.name||''),'#f59e0b')+R('Saved before this month',f(t.gstart))+R('Payment this month',f(t.gpay)+(t.gpaid?' (paid)':''))+R('Total after this month',f(t.gafter),GRN);
  if(d.vars.some(c=>c.log.length))h+=H('Spending log','#64748b')+d.vars.map(c=>c.log.map(l=>R(`${c.name}: ${l.d}${l.note?' - '+l.note:''}`,f(l.amt))).join('')).join('');
  return h}
 function previewReport(id){const h=id?arch(id):null,d=h?h.data:S,t=h?h.sum:T;if(!d||!t)return;
@@ -264,10 +304,10 @@ function csvArch(id){const h=arch(id);if(h)saveBlob(`planner-${h.month}.csv`,new
 function delArch(id){snap('Archive deleted');S.history=S.history.filter(h=>h.id!==id);render()}
 function archiveNow(){const t=summ(S),data=JSON.parse(JSON.stringify(S));delete data.history;delete data.rolled;
  S.history=(S.history||[]).filter(h=>h.month!==S.month);S.history.unshift({id:uid(),month:S.month,saved:new Date().toISOString().slice(0,10),sum:t,data});return t}
-function rollForward(t,key){S.vars.forEach(c=>c.log=[]);S.card.start=Math.round((+t.cbal||0)*100)/100;S.card.log=[];do{const[y,m]=ym(),d=new Date(y,m,1);S.month=d.getFullYear()+'-'+p2(d.getMonth()+1)}while(key&&S.month<=key)}
+function rollForward(t,key){S.ov={income:null,fixed:null,variable:null,savings:null};S.vars.forEach(c=>c.log=[]);S.grp.start=Math.round((+t.gnow||0)*100)/100;S.grp.paid=false;S.card.start=Math.round((+t.cbal||0)*100)/100;S.card.log=[];do{const[y,m]=ym(),d=new Date(y,m,1);S.month=d.getFullYear()+'-'+p2(d.getMonth()+1)}while(key&&S.month<=key)}
 function newMonth(){const t=summ(S),[y,m]=ym(),L=d=>d.toLocaleDateString('en-GB',{month:'long',year:'numeric'}),n=S.vars.reduce((a,c)=>a+c.log.length,0)+(S.card.log||[]).length;
- confirmBox('Start a new month?',`<p><b>Archive:</b> ${L(new Date(y,m-1))} (money left ${f(t.left)}, spent ${f(t.spent)}), ready for PDF or CSV.</p><p><b>Start:</b> ${L(new Date(y,m,1))}</p><p><b>Carried forward:</b> ${S.income.length} income, ${S.fixed.length} fixed, ${S.savings.length} savings goal(s), your variable caps, and the card balance: <b>${t.cbal>=0?f(t.cbal)+' owed':f(-t.cbal)+' in credit'}</b> becomes the new starting balance.</p><p><b>Cleared:</b> ${n} logged spending entr${n===1?'y':'ies'}.</p><p><b>Opening balance stays ${f(S.opening)}.</b> Last month’s shortfall is not carried over, so update it to your real balance.</p>`,'Archive & start',doNewMonth)}
-function doNewMonth(){snap('Month saved to Archive. New month started');rollForward(archiveNow());render()}
+ confirmBox('Start a new month?',`<p><b>Archive:</b> ${L(new Date(y,m-1))} (money left ${f(t.left)}, spent ${f(t.spent)}), ready for PDF or CSV.</p><p><b>Start:</b> ${L(new Date(y,m,1))}</p><p><b>Savings group:</b> ${f(t.gnow)} saved so far carries forward${S.grp.paid?'':' (this month’s payment is not marked paid, so it is not included)'}.</p><p><b>Carried forward:</b> ${S.income.length} income, ${S.fixed.length} fixed, ${S.savings.length} savings goal(s), your variable caps, and the card balance: <b>${t.cbal>=0?f(t.cbal)+' owed':f(-t.cbal)+' in credit'}</b> becomes the new starting balance.</p><p><b>Cleared:</b> ${n} logged spending entr${n===1?'y':'ies'}.</p><p><b>Set for the new month</b> (edit anything else afterwards):</p><label>Opening balance (£)<input id="nmop" type="text" inputmode="decimal" value="${S.opening}"></label><label>Savings group total saved (£)<input id="nmgp" type="text" inputmode="decimal" value="${Math.round(t.gnow*100)/100}"></label><label>Credit card balance owed (£)<input id="nmcb" type="text" inputmode="decimal" value="${Math.round(t.cbal*100)/100}"></label><small>Last month’s shortfall is never carried over.</small>`,'Archive & start',doNewMonth)}
+function doNewMonth(){const a=$('#nmop'),b=$('#nmcb'),gg=$('#nmgp'),ov=a?num(a.value):null,cv=b?num(b.value):null;snap('Month saved to Archive. New month started');rollForward(archiveNow());if(ov!=null)S.opening=ov;if(cv!=null)S.card.start=cv;if(gg)S.grp.start=num(gg.value);render()}
 function autoRoll(){const n=new Date(),key=n.getFullYear()+'-'+p2(n.getMonth()+1);if(n.getDate()<25||S.rolled===key)return false;
  S.rolled=key;if(S.month>key)return true;rollForward(archiveNow(),key);return true}
 function addArchive(){const lb=k=>{const[y,m]=k.split('-').map(Number);return new Date(y,m-1).toLocaleDateString('en-GB',{month:'long',year:'numeric'})};
